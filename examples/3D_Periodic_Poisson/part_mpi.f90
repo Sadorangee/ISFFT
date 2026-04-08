@@ -1,0 +1,654 @@
+!----------------------------------------------------------------------
+subroutine part
+   Use flow_parameters
+   implicit none
+   integer k,ka,ierr
+   integer npx1,npy1,npz1,npx2,npy2,npz2,my_mod1
+
+   if(np_size .ne. npx0*npy0*npz0) then
+      if(my_id.eq.0) print*, 'The Number of total Processes is not equal to npx0*npy0*npz0 !'
+      call mpi_finalize(ierr)
+      stop
+   endif
+
+   npx=mod(my_id,npx0)
+   npy=mod(my_id,npx0*npy0)/npx0
+   npz=my_id/(npx0*npy0)
+
+   nx=nx_global/npx0
+   ny=ny_global/npy0
+   nz=nz_global/npz0
+   if(npx .lt. mod(nx_global,npx0)) nx=nx+1
+   if(npy .lt. mod(ny_global,npy0)) ny=ny+1
+   if(npz .lt. mod(nz_global,npz0)) nz=nz+1
+
+   do k=0,npx0-1
+      ka=min(k,mod(nx_global,npx0))
+      i_offset(k)=int(nx_global/npx0)*k+ka+1
+      i_nn(k)=nx_global/npx0
+      if(k .lt. mod(nx_global,npx0)) i_nn(k)=i_nn(k)+1
+   enddo
+
+   do k=0,npy0-1
+      ka=min(k,mod(ny_global,npy0))
+      j_offset(k)=int(ny_global/npy0)*k+ka+1
+      j_nn(k)=ny_global/npy0
+      if(k .lt. mod(ny_global,npy0)) j_nn(k)=j_nn(k)+1
+   enddo
+
+   do k=0,npz0-1
+      ka=min(k,mod(nz_global,npz0))
+      k_offset(k)=int(nz_global/npz0)*k+ka+1
+      k_nn(k)=nz_global/npz0
+      if(k .lt. mod(nz_global,npz0)) k_nn(k)=k_nn(k)+1
+   enddo
+
+   npx1=my_mod1(npx-1,npx0)
+   npx2=my_mod1(npx+1,npx0)
+   ID_XM1=npz*(npx0*npy0)+npy*npx0+npx1    ! -1 proc in x-direction
+   ID_XP1=npz*(npx0*npy0)+npy*npx0+npx2    ! +1 proc in x-direction
+
+   npy1=my_mod1(npy-1,npy0)
+   npy2=my_mod1(npy+1,npy0)
+   ID_YM1=npz*(npx0*npy0)+npy1*npx0+npx
+   ID_YP1=npz*(npx0*npy0)+npy2*npx0+npx
+
+   npz1=my_mod1(npz-1,npz0)
+   npz2=my_mod1(npz+1,npz0)
+   ID_ZM1=npz1*(npx0*npy0)+npy*npx0+npx
+   ID_ZP1=npz2*(npx0*npy0)+npy*npx0+npx
+
+
+   call MPI_barrier(MPI_COMM_WORLD,ierr)
+
+end subroutine part
+!----------------------------------------------------------------------
+subroutine part_change(npx0_new,npy0_new,npz0_new)
+   Use flow_parameters
+   integer :: npx0_new, npy0_new, npz0_new
+
+   npx0 = npx0_new;
+   npy0 = npy0_new;
+   npz0 = npz0_new;
+
+   if(np_size .ne. npx0*npy0*npz0) then
+      if(my_id.eq.0) print*, 'The Changed Number of total Processes is not equal to npx0*npy0*npz0 !'
+      call mpi_finalize(ierr)
+      stop
+   endif
+
+   call mpi_comm_free(MPI_COMM_X,ierr)
+   call mpi_comm_free(MPI_COMM_Y,ierr)
+   call mpi_comm_free(MPI_COMM_Z,ierr)
+   call part
+end subroutine part_change
+!----------------------------------------------------------------------
+
+
+!----------------------------------------------------------------------
+subroutine exchange_boundary_xyz(f)
+   Use flow_parameters
+   implicit none
+   real(kind=TMS_REAL_KIND):: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   call exchange_boundary_x_standard(f, 1)
+   call exchange_boundary_y_standard(f, 1)
+   call exchange_boundary_z_standard(f, 1)
+   return
+end subroutine exchange_boundary_xyz
+!----------------------------------------------------------------------
+subroutine exchange_boundary_x_standard(f, Iperiodic1)
+   use flow_parameters
+   implicit none
+   integer, intent(in) :: Iperiodic1
+   real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+ 
+   integer :: ierr, Status(MPI_STATUS_SIZE)
+   integer :: hop, max_hops_left, max_hops_right
+   integer :: rL, rR, proc_left, proc_right
+   integer :: cnt_recv_left,  cnt_recv_right
+   integer :: cnt_send_left,  cnt_send_right
+   integer :: s, filled_left, filled_right
+   integer :: my_mod1, get_id
+   integer :: i, j, k, k1
+   integer :: tag_lr, tag_rl
+ 
+   real(kind=TMS_REAL_KIND), allocatable :: send_right_buf(:), recv_left_buf(:)
+   real(kind=TMS_REAL_KIND), allocatable :: send_left_buf(:),  recv_right_buf(:)
+ 
+   if (LAP <= 0) return
+ 
+   if (Iperiodic1 == 1) then
+      max_hops_left  = npx0 - 1
+      max_hops_right = npx0 - 1
+   else
+      max_hops_left  = npx         
+      max_hops_right = (npx0-1)-npx
+   end if
+ 
+   allocate(send_right_buf(LAP*ny*nz), recv_left_buf(LAP*ny*nz))
+   allocate(send_left_buf (LAP*ny*nz), recv_right_buf(LAP*ny*nz))
+ 
+   filled_left  = 0   
+   filled_right = 0   
+ 
+   hop = 1
+   do while ( (filled_left  < LAP .and. hop <= max_hops_left)  .or. &
+              (filled_right < LAP .and. hop <= max_hops_right) )
+ 
+   
+      if (hop <= max_hops_left) then
+         rL = my_mod1(npx - hop, npx0)
+         if (Iperiodic1 == 1 .or. npx - hop >= 0) then
+            proc_left = get_id(rL, npy, npz)
+         else
+            proc_left = MPI_PROC_NULL
+         end if
+      else
+         proc_left = MPI_PROC_NULL
+      end if
+ 
+      if (hop <= max_hops_right) then
+         rR = my_mod1(npx + hop, npx0)
+         if (Iperiodic1 == 1 .or. npx + hop <= npx0-1) then
+            proc_right = get_id(rR, npy, npz)
+         else
+           proc_right = MPI_PROC_NULL
+         end if
+      else
+         proc_right = MPI_PROC_NULL
+      end if
+ 
+
+      cnt_recv_left  = 0
+      if (proc_left  /= MPI_PROC_NULL .and. filled_left  < LAP) then
+         cnt_recv_left = min( LAP - filled_left,  i_nn(rL) )
+      end if
+ 
+      cnt_recv_right = 0
+      if (proc_right /= MPI_PROC_NULL .and. filled_right < LAP) then
+         cnt_recv_right = min( LAP - filled_right, i_nn(rR) )
+      end if
+ 
+
+      cnt_send_right = 0
+      if (proc_right /= MPI_PROC_NULL) then
+         
+         cnt_send_right = LAP
+         do s=1,hop-1
+            cnt_send_right = cnt_send_right - i_nn( my_mod1(rR - s, npx0) )
+         end do
+         if (cnt_send_right < 0) cnt_send_right = 0
+         cnt_send_right = min( cnt_send_right, i_nn(npx) )   
+      end if
+ 
+
+      cnt_send_left = 0
+      if (proc_left /= MPI_PROC_NULL) then
+
+         cnt_send_left = LAP
+         do s=1,hop-1
+            cnt_send_left = cnt_send_left - i_nn( my_mod1(rL + s, npx0) )
+         end do
+         if (cnt_send_left < 0) cnt_send_left = 0
+         cnt_send_left = min( cnt_send_left, i_nn(npx) )
+      end if
+ 
+
+      tag_lr = 8000 + hop
+ 
+
+      if (cnt_send_right > 0) then
+         k1 = 0
+         do k=1, nz
+            do j=1, ny
+               do i=nx-cnt_send_right+1, nx
+                  k1 = k1 + 1
+                  send_right_buf(k1) = f(i, j, k)
+               end do
+            end do
+         end do
+      end if
+ 
+      call MPI_Sendrecv( send_right_buf, cnt_send_right*ny*nz, TMS_DATA_TYPE, proc_right, tag_lr, &
+                         recv_left_buf,  cnt_recv_left *ny*nz, TMS_DATA_TYPE, proc_left,  tag_lr, &
+                         MPI_COMM_WORLD, Status, ierr )
+ 
+
+      if (cnt_recv_left > 0) then
+         k1 = 0
+         do k=1, nz
+            do j=1, ny
+               do i=1, cnt_recv_left
+                  k1 = k1 + 1
+
+                  f( -filled_left - cnt_recv_left + i, j, k ) = recv_left_buf(k1)
+               end do
+            end do
+         end do
+         filled_left = filled_left + cnt_recv_left
+      end if
+ 
+
+      tag_rl = 9000 + hop
+ 
+
+      if (cnt_send_left > 0) then
+         k1 = 0
+         do k=1, nz
+            do j=1, ny
+               do i=1, cnt_send_left
+                  k1 = k1 + 1
+                  send_left_buf(k1) = f(i, j, k)
+               end do
+            end do
+         end do
+      end if
+ 
+      call MPI_Sendrecv( send_left_buf,  cnt_send_left *ny*nz, TMS_DATA_TYPE, proc_left,  tag_rl, &
+                         recv_right_buf, cnt_recv_right*ny*nz, TMS_DATA_TYPE, proc_right, tag_rl, &
+                         MPI_COMM_WORLD, Status, ierr )
+ 
+
+      if (cnt_recv_right > 0) then
+         k1 = 0
+         do k=1, nz
+            do j=1, ny
+               do i=1, cnt_recv_right
+                  k1 = k1 + 1
+
+                  f( nx + filled_right + i, j, k ) = recv_right_buf(k1)
+               end do
+            end do
+         end do
+         filled_right = filled_right + cnt_recv_right
+      end if
+ 
+      hop = hop + 1
+   end do
+ 
+   if (TMS_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+ 
+   deallocate(send_right_buf, recv_left_buf, send_left_buf, recv_right_buf)
+end subroutine exchange_boundary_x_standard
+!----------------------------------------------------------------------
+subroutine exchange_boundary_y_standard(f, Iperiodic2)
+   use flow_parameters
+   implicit none
+   integer, intent(in) :: Iperiodic2
+   real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+ 
+   integer :: ierr, Status(MPI_STATUS_SIZE)
+   integer :: hop, max_hops_dn, max_hops_up
+   integer :: rD, rU, proc_dn, proc_up
+   integer :: cnt_recv_dn,  cnt_recv_up
+   integer :: cnt_send_dn,  cnt_send_up
+   integer :: s, filled_dn, filled_up
+   integer :: my_mod1, get_id
+   integer :: i, j, k, k1
+   integer :: tag_du, tag_ud
+ 
+   real(kind=TMS_REAL_KIND), allocatable :: send_up_buf(:), recv_dn_buf(:)
+   real(kind=TMS_REAL_KIND), allocatable :: send_dn_buf(:), recv_up_buf(:)
+ 
+   if (LAP <= 0) return
+ 
+   if (Iperiodic2 == 1) then
+      max_hops_dn = npy0 - 1
+      max_hops_up = npy0 - 1
+   else
+      max_hops_dn = npy
+      max_hops_up = (npy0-1) - npy
+   end if
+ 
+   allocate(send_up_buf(LAP*nx*nz), recv_dn_buf(LAP*nx*nz))
+   allocate(send_dn_buf(LAP*nx*nz), recv_up_buf(LAP*nx*nz))
+ 
+   filled_dn = 0 ! 已填入“下（负 y）幽灵层”的行数（从内向外）
+   filled_up = 0 ! 已填入“上（正 y）幽灵层”的行数（从内向外）
+ 
+   hop = 1
+   do while ( (filled_dn < LAP .and. hop <= max_hops_dn) .or. &
+              (filled_up < LAP .and. hop <= max_hops_up) )
+ 
+      if (hop <= max_hops_dn) then
+         rD = my_mod1(npy - hop, npy0)
+         if (Iperiodic2 == 1 .or. npy - hop >= 0) then
+            proc_dn = get_id(npx, rD, npz)
+         else
+            proc_dn = MPI_PROC_NULL
+         end if
+      else
+         proc_dn = MPI_PROC_NULL
+      end if
+ 
+      if (hop <= max_hops_up) then
+         rU = my_mod1(npy + hop, npy0)
+         if (Iperiodic2 == 1 .or. npy + hop <= npy0-1) then
+            proc_up = get_id(npx, rU, npz)
+         else
+            proc_up = MPI_PROC_NULL
+         end if
+      else
+         proc_up = MPI_PROC_NULL
+      end if
+ 
+      cnt_recv_dn = 0
+      if (proc_dn /= MPI_PROC_NULL .and. filled_dn < LAP) then
+         cnt_recv_dn = min( LAP - filled_dn, j_nn(rD) )
+      end if
+ 
+      cnt_recv_up = 0
+      if (proc_up /= MPI_PROC_NULL .and. filled_up < LAP) then
+         cnt_recv_up = min( LAP - filled_up, j_nn(rU) )
+      end if
+ 
+      cnt_send_up = 0
+      if (proc_up /= MPI_PROC_NULL) then
+         cnt_send_up = LAP
+         do s=1,hop-1
+            cnt_send_up = cnt_send_up - j_nn( my_mod1(rU - s, npy0) )
+         end do
+         if (cnt_send_up < 0) cnt_send_up = 0
+         cnt_send_up = min( cnt_send_up, j_nn(npy) )
+      end if
+ 
+      cnt_send_dn = 0
+      if (proc_dn /= MPI_PROC_NULL) then
+         cnt_send_dn = LAP
+         do s=1,hop-1
+            cnt_send_dn = cnt_send_dn - j_nn( my_mod1(rD + s, npy0) )
+         end do
+         if (cnt_send_dn < 0) cnt_send_dn = 0
+         cnt_send_dn = min( cnt_send_dn, j_nn(npy) )
+      end if
+ 
+      ! 上发 / 下收（收下 → 填下幽灵）
+      tag_du = 8100 + hop
+      if (cnt_send_up > 0) then
+         k1 = 0
+         do k=1, nz
+            do j=ny-cnt_send_up+1, ny
+               do i=1, nx
+                  k1 = k1 + 1
+                  send_up_buf(k1) = f(i, j, k)
+               end do
+            end do
+         end do
+      end if
+ 
+      call MPI_Sendrecv( send_up_buf,  cnt_send_up*nx*nz, TMS_DATA_TYPE, proc_up, tag_du, &
+                         recv_dn_buf,  cnt_recv_dn*nx*nz, TMS_DATA_TYPE, proc_dn, tag_du, &
+                         MPI_COMM_WORLD, Status, ierr )
+ 
+      if (cnt_recv_dn > 0) then
+         k1 = 0
+         do k=1, nz
+            do j=1, cnt_recv_dn
+               do i=1, nx
+                  k1 = k1 + 1
+                  f(i, -filled_dn - cnt_recv_dn + j, k) = recv_dn_buf(k1)
+               end do
+            end do
+         end do
+         filled_dn = filled_dn + cnt_recv_dn
+      end if
+ 
+      ! 下发 / 上收（收上 → 填上幽灵）
+      tag_ud = 9100 + hop
+      if (cnt_send_dn > 0) then
+         k1 = 0
+         do k=1, nz
+            do j=1, cnt_send_dn
+               do i=1, nx
+                  k1 = k1 + 1
+                  send_dn_buf(k1) = f(i, j, k)
+               end do
+            end do
+         end do
+      end if
+ 
+      call MPI_Sendrecv( send_dn_buf,  cnt_send_dn*nx*nz, TMS_DATA_TYPE, proc_dn, tag_ud, &
+                         recv_up_buf,  cnt_recv_up*nx*nz, TMS_DATA_TYPE, proc_up, tag_ud, &
+                         MPI_COMM_WORLD, Status, ierr )
+ 
+      if (cnt_recv_up > 0) then
+         k1 = 0
+         do k=1, nz
+            do j=1, cnt_recv_up
+               do i=1, nx
+                  k1 = k1 + 1
+                  f(i, ny + filled_up + j, k) = recv_up_buf(k1)
+               end do
+            end do
+         end do
+         filled_up = filled_up + cnt_recv_up
+      end if
+ 
+      hop = hop + 1
+   end do
+ 
+   if (TMS_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+ 
+   deallocate(send_up_buf, recv_dn_buf, send_dn_buf, recv_up_buf)
+end subroutine exchange_boundary_y_standard
+!----------------------------------------------------------------------
+subroutine exchange_boundary_z_standard(f, Iperiodic3)
+   use flow_parameters
+   implicit none
+   integer, intent(in) :: Iperiodic3
+   real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+ 
+   integer :: ierr, Status(MPI_STATUS_SIZE)
+   integer :: hop, max_hops_bk, max_hops_fr
+   integer :: rB, rF, proc_bk, proc_fr
+   integer :: cnt_recv_bk,  cnt_recv_fr
+   integer :: cnt_send_bk,  cnt_send_fr
+   integer :: s, filled_bk, filled_fr
+   integer :: my_mod1, get_id
+   integer :: i, j, k, k1
+   integer :: tag_bf, tag_fb
+ 
+   real(kind=TMS_REAL_KIND), allocatable :: send_fr_buf(:), recv_bk_buf(:)
+   real(kind=TMS_REAL_KIND), allocatable :: send_bk_buf(:), recv_fr_buf(:)
+ 
+   if (LAP <= 0) return
+ 
+   if (Iperiodic3 == 1) then
+      max_hops_bk = npz0 - 1
+      max_hops_fr = npz0 - 1
+   else
+      max_hops_bk = npz
+      max_hops_fr = (npz0-1) - npz
+   end if
+ 
+   allocate(send_fr_buf(LAP*nx*ny), recv_bk_buf(LAP*nx*ny))
+   allocate(send_bk_buf(LAP*nx*ny), recv_fr_buf(LAP*nx*ny))
+ 
+   filled_bk = 0 ! 已填入“后（负 z）幽灵层”的层数（从内向外）
+   filled_fr = 0 ! 已填入“前（正 z）幽灵层”的层数（从内向外）
+ 
+   hop = 1
+   do while ( (filled_bk < LAP .and. hop <= max_hops_bk) .or. &
+              (filled_fr < LAP .and. hop <= max_hops_fr) )
+ 
+      if (hop <= max_hops_bk) then
+         rB = my_mod1(npz - hop, npz0)
+         if (Iperiodic3 == 1 .or. npz - hop >= 0) then
+            proc_bk = get_id(npx, npy, rB)
+         else
+            proc_bk = MPI_PROC_NULL
+         end if
+      else
+         proc_bk = MPI_PROC_NULL
+      end if
+ 
+      if (hop <= max_hops_fr) then
+         rF = my_mod1(npz + hop, npz0)
+         if (Iperiodic3 == 1 .or. npz + hop <= npz0-1) then
+            proc_fr = get_id(npx, npy, rF)
+         else
+            proc_fr = MPI_PROC_NULL
+         end if
+      else
+         proc_fr = MPI_PROC_NULL
+      end if
+ 
+      cnt_recv_bk = 0
+      if (proc_bk /= MPI_PROC_NULL .and. filled_bk < LAP) then
+         cnt_recv_bk = min( LAP - filled_bk, k_nn(rB) )
+      end if
+ 
+      cnt_recv_fr = 0
+      if (proc_fr /= MPI_PROC_NULL .and. filled_fr < LAP) then
+         cnt_recv_fr = min( LAP - filled_fr, k_nn(rF) )
+      end if
+ 
+      cnt_send_fr = 0
+      if (proc_fr /= MPI_PROC_NULL) then
+         cnt_send_fr = LAP
+         do s=1,hop-1
+            cnt_send_fr = cnt_send_fr - k_nn( my_mod1(rF - s, npz0) )
+         end do
+         if (cnt_send_fr < 0) cnt_send_fr = 0
+         cnt_send_fr = min( cnt_send_fr, k_nn(npz) )
+      end if
+ 
+      cnt_send_bk = 0
+      if (proc_bk /= MPI_PROC_NULL) then
+         cnt_send_bk = LAP
+         do s=1,hop-1
+            cnt_send_bk = cnt_send_bk - k_nn( my_mod1(rB + s, npz0) )
+         end do
+         if (cnt_send_bk < 0) cnt_send_bk = 0
+         cnt_send_bk = min( cnt_send_bk, k_nn(npz) )
+      end if
+ 
+      ! 前发 / 后收（收后 → 填后幽灵）
+      tag_bf = 8200 + hop
+      if (cnt_send_fr > 0) then
+         k1 = 0
+         do k=nz-cnt_send_fr+1, nz
+            do j=1, ny
+               do i=1, nx
+                  k1 = k1 + 1
+                  send_fr_buf(k1) = f(i, j, k)
+               end do
+            end do
+         end do
+      end if
+ 
+      call MPI_Sendrecv( send_fr_buf,  cnt_send_fr*nx*ny, TMS_DATA_TYPE, proc_fr, tag_bf, &
+                         recv_bk_buf,  cnt_recv_bk*nx*ny, TMS_DATA_TYPE, proc_bk, tag_bf, &
+                         MPI_COMM_WORLD, Status, ierr )
+ 
+      if (cnt_recv_bk > 0) then
+         k1 = 0
+         do k=1, cnt_recv_bk
+            do j=1, ny
+               do i=1, nx
+                  k1 = k1 + 1
+                  f(i, j, -filled_bk - cnt_recv_bk + k) = recv_bk_buf(k1)
+               end do
+            end do
+         end do
+         filled_bk = filled_bk + cnt_recv_bk
+      end if
+ 
+      ! 后发 / 前收（收前 → 填前幽灵）
+      tag_fb = 9200 + hop
+      if (cnt_send_bk > 0) then
+          k1 = 0
+          do k=1, cnt_send_bk
+             do j=1, ny
+                do i=1, nx
+                   k1 = k1 + 1
+                   send_bk_buf(k1) = f(i, j, k)
+                end do
+             end do
+          end do
+      end if
+ 
+      call MPI_Sendrecv( send_bk_buf,  cnt_send_bk*nx*ny, TMS_DATA_TYPE, proc_bk, tag_fb, &
+                         recv_fr_buf,  cnt_recv_fr*nx*ny, TMS_DATA_TYPE, proc_fr, tag_fb, &
+                         MPI_COMM_WORLD, Status, ierr )
+ 
+      if (cnt_recv_fr > 0) then
+         k1 = 0
+         do k=1, cnt_recv_fr
+            do j=1, ny
+               do i=1, nx
+                  k1 = k1 + 1
+                  f(i, j, nz + filled_fr + k) = recv_fr_buf(k1)
+               end do
+            end do
+         end do
+         filled_fr = filled_fr + cnt_recv_fr
+      end if
+ 
+      hop = hop + 1
+   end do
+ 
+   if (TMS_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+ 
+   deallocate(send_fr_buf, recv_bk_buf, send_bk_buf, recv_fr_buf)
+end subroutine exchange_boundary_z_standard
+
+
+!----------------------------------------------------------------------
+function my_mod1(i,n)
+   implicit none
+   integer my_mod1,i,n
+   if(i.lt.0) then
+      my_mod1=i+n
+   else if (i.gt.n-1) then
+      my_mod1=i-n
+   else
+      my_mod1=i
+   endif
+end function my_mod1
+!----------------------------------------------------------------------
+subroutine get_i_node(i_global,node_i,i_local)
+   Use TMS_constants
+   implicit none
+   integer i_global,node_i,i_local,ia
+
+   node_i=npx0-1
+   do ia=0,npx0-2
+      if(i_global.ge.i_offset(ia) .and. i_global .lt. i_offset(ia+1) ) node_i=ia
+   enddo
+   i_local=i_global-i_offset(node_i)+1
+end subroutine get_i_node
+!----------------------------------------------------------------------
+subroutine get_j_node(j_global,node_j,j_local)
+   Use TMS_constants
+   implicit none
+   integer j_global,node_j,j_local,ja
+
+   node_j=npy0-1
+   do ja=0,npy0-2
+      if(j_global.ge.j_offset(ja) .and. j_global .lt. j_offset(ja+1) ) node_j=ja
+   enddo
+   j_local=j_global-j_offset(node_j)+1
+end subroutine get_j_node
+!----------------------------------------------------------------------
+subroutine get_k_node(k_global,node_k,k_local)
+   Use TMS_constants
+   implicit none
+   integer k_global,node_k,k_local,ka
+
+   node_k=npz0-1
+   do ka=0,npz0-2
+      if(k_global .ge. k_offset(ka) .and. k_global .lt. k_offset(ka+1) ) node_k=ka
+   enddo
+   k_local=k_global-k_offset(node_k)+1
+end subroutine get_k_node
+!----------------------------------------------------------------------
+function get_id(npx1,npy1,npz1)
+   Use TMS_constants
+   implicit none
+   integer get_id,npx1,npy1,npz1
+   get_id=npz1*(npx0*npy0)+npy1*npx0+npx1
+   return
+end function get_id
+!----------------------------------------------------------------------
+

@@ -1,0 +1,19 @@
+# Compiled objects
+*.o
+*.mod
+*.a
+
+# Executables
+*.out
+*.exe
+
+# Build directories
+/build/
+/lib/
+/include/
+/install/
+
+# macOS / Windows system files
+.DS_Store
+Thumbs.db
+desktop.ini
