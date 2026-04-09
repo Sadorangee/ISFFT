@@ -72,4 +72,4 @@ $(EXE): menu.f90
 	$(FC) $(FFLAGS) $(CPPFLAGS) $< -o $@ $(LDFLAGS) $(LIBS)
 
 clean:
-	rm -f *.o *.mod *.dat $(EXE)
+	rm -f *.o *.mod *.dat *.out $(EXE)
