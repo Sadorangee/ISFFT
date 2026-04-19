@@ -303,8 +303,8 @@ subroutine exchange_boundary_y_standard(f, Iperiodic2)
    allocate(send_up_buf(LAP*nx*nz), recv_dn_buf(LAP*nx*nz))
    allocate(send_dn_buf(LAP*nx*nz), recv_up_buf(LAP*nx*nz))
  
-   filled_dn = 0 ! 已填入“下（负 y）幽灵层”的行数（从内向外）
-   filled_up = 0 ! 已填入“上（正 y）幽灵层”的行数（从内向外）
+   filled_dn = 0 
+   filled_up = 0 
  
    hop = 1
    do while ( (filled_dn < LAP .and. hop <= max_hops_dn) .or. &
@@ -362,7 +362,6 @@ subroutine exchange_boundary_y_standard(f, Iperiodic2)
          cnt_send_dn = min( cnt_send_dn, j_nn(npy) )
       end if
  
-      ! 上发 / 下收（收下 → 填下幽灵）
       tag_du = 8100 + hop
       if (cnt_send_up > 0) then
          k1 = 0
@@ -393,7 +392,6 @@ subroutine exchange_boundary_y_standard(f, Iperiodic2)
          filled_dn = filled_dn + cnt_recv_dn
       end if
  
-      ! 下发 / 上收（收上 → 填上幽灵）
       tag_ud = 9100 + hop
       if (cnt_send_dn > 0) then
          k1 = 0
@@ -464,8 +462,8 @@ subroutine exchange_boundary_z_standard(f, Iperiodic3)
    allocate(send_fr_buf(LAP*nx*ny), recv_bk_buf(LAP*nx*ny))
    allocate(send_bk_buf(LAP*nx*ny), recv_fr_buf(LAP*nx*ny))
  
-   filled_bk = 0 ! 已填入“后（负 z）幽灵层”的层数（从内向外）
-   filled_fr = 0 ! 已填入“前（正 z）幽灵层”的层数（从内向外）
+   filled_bk = 0 
+   filled_fr = 0 
  
    hop = 1
    do while ( (filled_bk < LAP .and. hop <= max_hops_bk) .or. &
@@ -523,7 +521,6 @@ subroutine exchange_boundary_z_standard(f, Iperiodic3)
          cnt_send_bk = min( cnt_send_bk, k_nn(npz) )
       end if
  
-      ! 前发 / 后收（收后 → 填后幽灵）
       tag_bf = 8200 + hop
       if (cnt_send_fr > 0) then
          k1 = 0
@@ -554,7 +551,6 @@ subroutine exchange_boundary_z_standard(f, Iperiodic3)
          filled_bk = filled_bk + cnt_recv_bk
       end if
  
-      ! 后发 / 前收（收前 → 填前幽灵）
       tag_fb = 9200 + hop
       if (cnt_send_bk > 0) then
           k1 = 0

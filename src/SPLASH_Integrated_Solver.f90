@@ -18,7 +18,9 @@ contains
    subroutine SPLASH_Periodic_Poisson_solver(phi, f)
       implicit none
 
-      real(kind=SPLASH_REAL_KIND),dimension(:,:,:), intent(inout) :: phi, f
+      ! real(kind=SPLASH_REAL_KIND),dimension(:,:,:), intent(inout) :: phi, f
+      real(kind=SPLASH_REAL_KIND), intent(inout) :: phi(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+      real(kind=SPLASH_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
       !!!---------------------------------------------------------------
       allocate(f_internal(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP))
       f_internal = f

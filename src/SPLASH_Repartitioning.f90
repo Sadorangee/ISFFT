@@ -287,8 +287,8 @@ contains
          end do
       end do
 
-      call MPI_Alltoallv(sendbuf, sendcounts, sdispls, SPLASH_DATA_TYPE, &
-         recvbuf, recvcounts, rdispls, SPLASH_DATA_TYPE, MPI_COMM_WORLD, ierr)
+      call MPI_Alltoallv(sendbuf, sendcounts, sdispls, MPI_DOUBLE_PRECISION, &
+         recvbuf, recvcounts, rdispls, MPI_DOUBLE_PRECISION, MPI_COMM_WORLD, ierr)
 
 
       if (allocated(phi_inout)) deallocate(phi_inout)

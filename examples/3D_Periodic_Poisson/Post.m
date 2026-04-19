@@ -9,12 +9,22 @@ dx = Lx/nx; dy = Ly/ny; dz = Lz/nz;
 
 x = 0:dx:Lx-dx;  y = 0:dy:Ly-dy;  z = 0:dz:Lz-dz;
 
-sx = sin(pi*x(:));          % [nx,1]
-cy = cos(2*pi*y(:));        % [ny,1]
-sz = sin(pi*z(:));          % [nz,1]
+% Exact solution:
+% u(x,y,z) = sin(2*pi*z/Lz) * ( sin(2*pi*x/Lx) + cos(4*pi*y/Ly) )
+%
+% Periodic Poisson problem:
+% Delta u = f
+%
+% with
+% f(x,y,z) = -sin(2*pi*z/Lz) * [ ((2*pi/Lx)^2 + (2*pi/Lz)^2) * sin(2*pi*x/Lx)
+%                              + ((4*pi/Ly)^2 + (2*pi/Lz)^2) * cos(4*pi*y/Ly) ]
 
-A = sx * sz.';              % [nx,nz]  -> sin(pi x)*sin(pi z)
-B = cy * sz.';              % [ny,nz]  -> cos(2pi y)*sin(pi z)
+sx = sin(2*pi*x(:)/Lx);      % [nx,1]
+cy = cos(4*pi*y(:)/Ly);      % [ny,1]
+sz = sin(2*pi*z(:)/Lz);      % [nz,1]
+
+A = sx * sz.';               % [nx,nz] -> sin(2pi x/Lx)*sin(2pi z/Lz)
+B = cy * sz.';               % [ny,nz] -> cos(4pi y/Ly)*sin(2pi z/Lz)
 u = permute(A,[1 3 2]) + permute(B,[3 1 2]);   % [nx,ny,nz]
 
 pp = reshape(data(:), [nx,ny,nz]);
@@ -29,11 +39,12 @@ legend('Theory','$SPLASH$','Location',      'northeast', ...
     'FontSize',      11, ...
     'FontName',      'Times New Roman','Interpreter','latex')
 
+ax = (2*pi/Lx)^2 + (2*pi/Lz)^2;
+ay = (4*pi/Ly)^2 + (2*pi/Lz)^2;
 
-% f(x,y,z) = pi^2 * sin(pi z) * [ 2 sin(pi x) + 5 cos(2pi y) ]
-AX = 2*sx * sz.';            % [nx,nz]
-BY = 5*cy * sz.';            % [ny,nz]
-f  = (pi^2) * ( permute(AX,[1 3 2]) + permute(BY,[3 1 2]) ); % [nx,ny,nz]
+AX = ax * (sx * sz.');       % [nx,nz]
+BY = ay * (cy * sz.');       % [ny,nz]
+f  = -( permute(AX,[1 3 2]) + permute(BY,[3 1 2]) );   % [nx,ny,nz]
 
 kx = 2*pi/Lx*[0:nx/2-1, -nx/2:-1]';   % [nx,1]
 ky = 2*pi/Ly*[0:ny/2-1, -ny/2:-1]';   % [ny,1]
@@ -47,19 +58,17 @@ LapPhiHat = LapPhiHat - bsxfun(@times, reshape(kz.^2,[1,1,nz]), Phi);
 
 Lpp_spec = ifftn(LapPhiHat, 'symmetric');
 
-R = -Lpp_spec - f;
+R = Lpp_spec - f;
 
 dV   = dx*dy*dz;
 resL2 = sqrt( sum(R(:).^2) * dV );
-fprintf('||-Δφ - f||_L2 = %.6e\n', resL2);
-
+fprintf('||Δφ - f||_L2 = %.6e\n', resL2);
 
 pp0 = pp - mean(pp(:));
 MAE = mean( abs(pp0(:) - u(:)) );
 fprintf('MAE(solution vs exact) = %.6e\n', MAE);
 
-set(gcf, 'Position', [100, 100, 500, 400]); 
-set(gca, 'LineWidth', 1.3); 
+set(gcf, 'Position', [100, 100, 500, 400]);
+set(gca, 'LineWidth', 1.3);
 
-% print('profile','-dpng','-r300');   
-
+% print('profile','-dpng','-r300');

@@ -7,18 +7,23 @@ subroutine Poisson_3D_source(f)
    integer i,j,k,m, ierr, l, k1
    real(kind=TMS_REAL_KIND)::f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
 
-   real(kind=TMS_REAL_KIND),parameter:: PI=3.14159260d0;
+   real(kind=TMS_REAL_KIND),parameter:: pi=3.14159260d0;
+   real(kind=TMS_REAL_KIND) :: sx, sy, sz
 
    allocate(xx(1-LAP:nx+LAP),yy(1-LAP:ny+LAP),zz(1-LAP:nz+LAP),  &
       xx0(nx_global), yy0(ny_global), zz0(nz_global) )
 
-   allocate(sz(1-LAP:nz+LAP),sz0(nz_global));
-
    f=0.0;
-   xx =0.0;yy =0.0;zz =0.0;
-   xx0=0.0;yy0=0.0;zz0=0.0;
-   sz =0.d0;
-   sz0=0.d0;
+   xx =0.0;
+   yy =0.0;
+   zz =0.0;
+   xx0=0.0;
+   yy0=0.0;
+   zz0=0.0;
+
+   sx = pi/SLx;
+   sy = pi/SLy;
+   sz = pi/SLz;
 
    do i=1,nx_global
       xx0(i)=(i-1.0)*hx
@@ -40,13 +45,11 @@ subroutine Poisson_3D_source(f)
    enddo
    do k=1,nz_global
       zz0(k)=(k-1.0)*hz
-      sz0(k)=1.0;
    enddo
    do k=1-LAP,nz+LAP
       k1=k_offset(npz)+k-1
       if(k1.ge.1 .and. k1 .le. nz_global) then
          zz(k)=zz0(k1)
-         sz(k)=sz0(k1)
       endif
    enddo
 
@@ -54,16 +57,13 @@ subroutine Poisson_3D_source(f)
    do k= 1,nz
       do j= 1,ny
          do i= 1,nx
-            f(i,j,k)= -pi**2.0*sin(pi*zz(k))*(2.0*sin(pi*xx(i))+5.0*cos(2.0*pi*yy(j)));
+            f(i,j,k)= -sin(2.0*sz*zz(k))*(((2.0*sx)**2.0+(2.0*sz)**2.0)*sin(2.0*sx*xx(i)) + &
+                      ((4.0*sy)**2.0+(2.0*sz)**2.0)*cos(4.0*sy*yy(j)))
          enddo
       enddo
    enddo
 
-         
-
-
-
-   deallocate(xx,yy,zz,xx0,yy0,zz0,sz,sz0)
+   deallocate(xx,yy,zz,xx0,yy0,zz0)
 
 end  subroutine Poisson_3D_source
 !!-----------------------------------------

@@ -46,7 +46,7 @@ module  flow_parameters
 !-----------------------------------------------------------
 ! Coordinate parameters
    real(kind=TMS_REAL_KIND),save:: SLx,SLy,SLz,hx,hy,hz
-   real(kind=TMS_REAL_KIND),allocatable,save,dimension(:) :: xx,yy,zz,xx0,yy0,zz0,sx,sy,sz,sx0,sy0,sz0
+   real(kind=TMS_REAL_KIND),allocatable,save,dimension(:) :: xx,yy,zz,xx0,yy0,zz0
 
 end module  flow_parameters
 !!----------------------------------------------------------
