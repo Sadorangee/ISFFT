@@ -1,26 +1,26 @@
 !!----------------------------------------------------------------------
-module SPLASH_3D_Periodic_Poisson
-   use SPLASH_Buffer
-   use SPLASH_3D_FFT
-   use SPLASH_Poisson_Algebra
+module ISFFT_3D_Periodic_Poisson
+   use ISFFT_Buffer
+   use ISFFT_3D_FFT
+   use ISFFT_Poisson_Algebra
    implicit none
 
    private
-   public :: SPLASH_3D_Periodic_Poisson_serial, &
-      SPLASH_3D_Periodic_Poisson_block, &
-      SPLASH_3D_Periodic_Poisson_slab, &
-      SPLASH_3D_Periodic_Poisson_pencil
+   public :: ISFFT_3D_Periodic_Poisson_serial, &
+      ISFFT_3D_Periodic_Poisson_block, &
+      ISFFT_3D_Periodic_Poisson_slab, &
+      ISFFT_3D_Periodic_Poisson_pencil
 
 contains
 
 !!---------------------------For test only------------------------------
-   Subroutine SPLASH_3D_Periodic_Poisson_serial(phi,f)
+   Subroutine ISFFT_3D_Periodic_Poisson_serial(phi,f)
       implicit none
       integer :: i, j, k
 
-      real(kind=SPLASH_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: phi
-      real(kind=SPLASH_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: f
-      real(kind=SPLASH_REAL_KIND), dimension(1:nx,1:ny,1:nz) :: f_re_serial, f_im_serial
+      real(kind=ISFFT_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: phi
+      real(kind=ISFFT_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: f
+      real(kind=ISFFT_REAL_KIND), dimension(1:nx,1:ny,1:nz) :: f_re_serial, f_im_serial
       !!----------------------------------------------------------------------
       do k=1,nz
          do j=1,ny
@@ -32,19 +32,19 @@ contains
 
       do k = 1, nz
          do j = 1, ny
-            call SPLASH_1D_FFT_r2c(nx_global, f_re_serial(:,j,k), f_im_serial(:,j,k), 1)
+            call ISFFT_1D_FFT_r2c(nx_global, f_re_serial(:,j,k), f_im_serial(:,j,k), 1)
          enddo
       enddo
 
       do k = 1, nz
          do j = 1, nx/2 + 1
-            call SPLASH_1D_FFT_c2c(ny_global, f_re_serial(j,:,k), f_im_serial(j,:,k), 1)
+            call ISFFT_1D_FFT_c2c(ny_global, f_re_serial(j,:,k), f_im_serial(j,:,k), 1)
          enddo
       enddo
 
       do k = 1, ny
          do j = 1, nx/2 + 1
-            call SPLASH_1D_FFT_c2c(nz_global, f_re_serial(j,k,:), f_im_serial(j,k,:), 1)
+            call ISFFT_1D_FFT_c2c(nz_global, f_re_serial(j,k,:), f_im_serial(j,k,:), 1)
          enddo
       enddo
 
@@ -52,19 +52,19 @@ contains
 
       do k = 1, ny
          do j = 1, nx/2 + 1
-            call SPLASH_1D_FFT_c2c(nz_global, f_re_serial(j,k,:), f_im_serial(j,k,:), -1)
+            call ISFFT_1D_FFT_c2c(nz_global, f_re_serial(j,k,:), f_im_serial(j,k,:), -1)
          enddo
       enddo
 
       do k = 1, nz
          do j = 1, nx/2 + 1
-            call SPLASH_1D_FFT_c2c(ny_global, f_re_serial(j,:,k), f_im_serial(j,:,k), -1)
+            call ISFFT_1D_FFT_c2c(ny_global, f_re_serial(j,:,k), f_im_serial(j,:,k), -1)
          enddo
       enddo
 
       do k = 1, nz
          do j = 1, ny
-            call SPLASH_1D_FFT_r2c(nx_global, f_re_serial(:,j,k), f_im_serial(:,j,k), -1)
+            call ISFFT_1D_FFT_r2c(nx_global, f_re_serial(:,j,k), f_im_serial(:,j,k), -1)
          enddo
       enddo
 
@@ -78,14 +78,14 @@ contains
 
       if (my_id .eq. 0) print*, 'Fourier_one_3D_serial is done'
 
-   End Subroutine SPLASH_3D_Periodic_Poisson_serial
+   End Subroutine ISFFT_3D_Periodic_Poisson_serial
 !!----------------------------------------------------------------------
-   Subroutine SPLASH_3D_Periodic_Poisson_block(phi,f)
+   Subroutine ISFFT_3D_Periodic_Poisson_block(phi,f)
       implicit none
       integer :: i, j, k, ierr
 
-      real(kind=SPLASH_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: phi
-      real(kind=SPLASH_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: f
+      real(kind=ISFFT_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: phi
+      real(kind=ISFFT_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: f
       !!----------------------------------------------------------------------
       do k=1,nz
          do j=1,ny
@@ -124,13 +124,13 @@ contains
          enddo
       enddo
 
-   End Subroutine SPLASH_3D_Periodic_Poisson_block
+   End Subroutine ISFFT_3D_Periodic_Poisson_block
 !!----------------------------------------------------------------------
-   Subroutine SPLASH_3D_Periodic_Poisson_slab(phi,f)
+   Subroutine ISFFT_3D_Periodic_Poisson_slab(phi,f)
       implicit none
       integer :: i, j, k, ierr
-      real(kind=SPLASH_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: phi
-      real(kind=SPLASH_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: f
+      real(kind=ISFFT_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: phi
+      real(kind=ISFFT_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: f
 
       !!----------------------------------------------------------------------
       do k=1,nz
@@ -170,14 +170,14 @@ contains
          enddo
       enddo
 
-   End Subroutine SPLASH_3D_Periodic_Poisson_slab
+   End Subroutine ISFFT_3D_Periodic_Poisson_slab
 !!----------------------------------------------------------------------
-   Subroutine SPLASH_3D_Periodic_Poisson_pencil(phi,f)
+   Subroutine ISFFT_3D_Periodic_Poisson_pencil(phi,f)
       implicit none
       integer :: i, j, k, ierr
 
-      real(kind=SPLASH_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: phi
-      real(kind=SPLASH_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: f
+      real(kind=ISFFT_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: phi
+      real(kind=ISFFT_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP) :: f
       !!----------------------------------------------------------------------
       do k=1,nz
          do j=1,ny
@@ -216,9 +216,9 @@ contains
          enddo
       enddo
 
-   End Subroutine SPLASH_3D_Periodic_Poisson_pencil
+   End Subroutine ISFFT_3D_Periodic_Poisson_pencil
 !!----------------------------------------------------------------------
 
 
-end module SPLASH_3D_Periodic_Poisson
+end module ISFFT_3D_Periodic_Poisson
 !!----------------------------------------------------------------------

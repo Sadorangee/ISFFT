@@ -1,17 +1,17 @@
-module SPLASH_LocalTranspose
-    use SPLASH_Parameters
-    use SPLASH_MPI_Constants
-    use SPLASH_Buffer
+module ISFFT_LocalTranspose
+    use ISFFT_Parameters
+    use ISFFT_MPI_Constants
+    use ISFFT_Buffer
     implicit none
  
  contains
 
  !----------------------------------------------------------------------
  subroutine local_transpose_12(phi_in, phi_im_in, phi_out, phi_im_out)
-    use SPLASH_Buffer, only: opt_lt12_bi, opt_lt12_bj, opt_lt12_bk, opt_lt12_variant
+    use ISFFT_Buffer, only: opt_lt12_bi, opt_lt12_bj, opt_lt12_bk, opt_lt12_variant
     implicit none
-    real(kind=SPLASH_REAL_KIND), intent(inout) :: phi_in(:,:,:),  phi_im_in(:,:,:)
-    real(kind=SPLASH_REAL_KIND), intent(out)   :: phi_out(:,:,:), phi_im_out(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(inout) :: phi_in(:,:,:),  phi_im_in(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(out)   :: phi_out(:,:,:), phi_im_out(:,:,:)
 
     integer :: n1, n2, n3
     integer :: ii, jj, kk, iend, jend, kend, i, j, k
@@ -61,12 +61,12 @@ module SPLASH_LocalTranspose
  end subroutine local_transpose_12
  !----------------------------------------------------------------------
  subroutine local_transpose_13(phi_in, phi_im_in, phi_out, phi_im_out)
-    use SPLASH_Buffer, only: If_lt13_tuned, tuned_lt13_n1, tuned_lt13_n2, tuned_lt13_n3, &
+    use ISFFT_Buffer, only: If_lt13_tuned, tuned_lt13_n1, tuned_lt13_n2, tuned_lt13_n3, &
        opt_lt13_bi, opt_lt13_bj, opt_lt13_bk, opt_lt13_variant
-    use SPLASH_MPI_Constants, only: my_id
+    use ISFFT_MPI_Constants, only: my_id
     implicit none
-    real(kind=SPLASH_REAL_KIND), intent(inout) :: phi_in(:,:,:),  phi_im_in(:,:,:)
-    real(kind=SPLASH_REAL_KIND), intent(out)   :: phi_out(:,:,:), phi_im_out(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(inout) :: phi_in(:,:,:),  phi_im_in(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(out)   :: phi_out(:,:,:), phi_im_out(:,:,:)
 
     integer :: n1, n2, n3
     integer :: ii, jj, kk, iend, jend, kend, i, j, k
@@ -118,4 +118,4 @@ module SPLASH_LocalTranspose
  !----------------------------------------------------------------------
 
 
-end module SPLASH_LocalTranspose
+end module ISFFT_LocalTranspose

@@ -1,16 +1,16 @@
-module SPLASH_Planner
-   use SPLASH_Parameters
-   use SPLASH_MPI_Constants
-   use SPLASH_Buffer
-   use SPLASH_MPI_Part, only: SPLASH_part
-   use SPLASH_FFT_Pre, only: FFT_Initialize, FFT_Finalize
-   use SPLASH_LT_Tuning, only: Tune_LocalTranspose, Reset_LocalTranspose
+module ISFFT_Planner
+   use ISFFT_Parameters
+   use ISFFT_MPI_Constants
+   use ISFFT_Buffer
+   use ISFFT_MPI_Part, only: ISFFT_part
+   use ISFFT_FFT_Pre, only: FFT_Initialize, FFT_Finalize
+   use ISFFT_LT_Tuning, only: Tune_LocalTranspose, Reset_LocalTranspose
    implicit none
 
 contains
 
    !----------------------------------------------------------------------
-   subroutine SPLASH_Initialize(Global_Grid_Size, Process_Grid_Size, Computational_Domain_Size, &
+   subroutine ISFFT_Initialize(Global_Grid_Size, Process_Grid_Size, Computational_Domain_Size, &
       Num_Lap, If_Decomp_Type, If_Algebra_scheme, My_Rank)
       implicit none
       integer, intent(in) :: Global_Grid_Size(3)
@@ -47,7 +47,7 @@ contains
       halfspectrum_y = ny_global / 2 + 1
       halfspectrum_z = nz_global / 2 + 1
 
-      call SPLASH_part()
+      call ISFFT_part()
 
       if (np_size .eq. 1 .or. If_3dfft_decomp .eq. 0) enable_transpose_tuning = .false.
 
@@ -66,12 +66,12 @@ contains
 
       !! -----------------Print-------------------
       if (my_id .eq. 0) then
-         write(*,*) 'SPLASH_Initialize is done!'
+         write(*,*) 'ISFFT_Initialize is done!'
       end if
 
-   end subroutine SPLASH_Initialize
+   end subroutine ISFFT_Initialize
    !----------------------------------------------------------------------
-   subroutine SPLASH_Finalize()
+   subroutine ISFFT_Finalize()
       implicit none
 
       call Deallocate_Buffer_3D_FFT()
@@ -81,10 +81,10 @@ contains
       call FFT_Finalize()
 
       if (my_id .eq. 0) then
-         write(*,*) 'SPLASH_Finalize is done!'
+         write(*,*) 'ISFFT_Finalize is done!'
       end if
 
-   end subroutine SPLASH_Finalize
+   end subroutine ISFFT_Finalize
    !----------------------------------------------------------------------
 
    !----------------------------------------------------------------------
@@ -387,4 +387,4 @@ contains
 
 
 
-end module SPLASH_Planner
+end module ISFFT_Planner

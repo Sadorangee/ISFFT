@@ -1,7 +1,7 @@
-module SPLASH_LT_Tuning
-   use SPLASH_Parameters
-   use SPLASH_MPI_Constants
-   use SPLASH_Buffer
+module ISFFT_LT_Tuning
+   use ISFFT_Parameters
+   use ISFFT_MPI_Constants
+   use ISFFT_Buffer
    implicit none
 
 contains
@@ -13,8 +13,8 @@ contains
       integer, intent(in) :: transpose_type  ! 12 / 13
 
       integer :: n1, n2, n3, ierr
-      real(kind=SPLASH_REAL_KIND), allocatable :: test_in(:,:,:)
-      real(kind=SPLASH_REAL_KIND), allocatable :: test_out(:,:,:)
+      real(kind=ISFFT_REAL_KIND), allocatable :: test_in(:,:,:)
+      real(kind=ISFFT_REAL_KIND), allocatable :: test_out(:,:,:)
 
       ! Target grid size
       if(If_3dfft_decomp .eq. 1) then
@@ -91,8 +91,8 @@ contains
    contains
       !------------------------------------------------------------
       subroutine Tune_Transpose_BS(ain, aout, dim1,dim2,dim3, trans_type)
-         real(kind=SPLASH_REAL_KIND), intent(in)  :: ain(:,:,:)
-         real(kind=SPLASH_REAL_KIND), intent(out) :: aout(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(in)  :: ain(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(out) :: aout(:,:,:)
          integer, intent(in)  :: dim1,dim2,dim3, trans_type
          integer :: bi, bj, bk, variant
 
@@ -142,7 +142,7 @@ contains
                         if (c_bk > s3) cycle
 
                         ! L1 cache limit
-                        if ( c_bi*c_bj*c_bk*SPLASH_ELEMSIZE() > 24576*3 ) cycle
+                        if ( c_bi*c_bj*c_bk*ISFFT_ELEMSIZE() > 24576*3 ) cycle
 
                         t = Bench_Transpose_Once(ain, aout, s1,s2,s3, c_bi,c_bj,c_bk, c_var, trans_type)
 
@@ -165,7 +165,7 @@ contains
                         if (c_bj > s2) cycle
 
                         ! L1 cache limit
-                        if ( c_bi*c_bj*c_bk*SPLASH_ELEMSIZE() > 24576*3 ) cycle
+                        if ( c_bi*c_bj*c_bk*ISFFT_ELEMSIZE() > 24576*3 ) cycle
 
                         t = Bench_Transpose_Once(ain, aout, s1,s2,s3, c_bi,c_bj,c_bk, c_var, trans_type)
 
@@ -189,14 +189,14 @@ contains
          end if
       end subroutine Tune_Transpose_BS
       !------------------------------------------------------------
-      pure integer function SPLASH_ELEMSIZE() result(bytes)
-         bytes = storage_size(0.0_SPLASH_REAL_KIND)/8
-      end function SPLASH_ELEMSIZE
+      pure integer function ISFFT_ELEMSIZE() result(bytes)
+         bytes = storage_size(0.0_ISFFT_REAL_KIND)/8
+      end function ISFFT_ELEMSIZE
       !------------------------------------------------------------
       real(real64) function Bench_Transpose_Once(ain, aout, s1,s2,s3, bi,bj,bk, variant, trans_type) result(sec)
-         real(kind=SPLASH_REAL_KIND), intent(in)  :: ain(:,:,:)
-         real(kind=SPLASH_REAL_KIND), intent(out) :: aout(:,:,:)
-         real(kind=SPLASH_REAL_KIND), allocatable :: temp(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(in)  :: ain(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(out) :: aout(:,:,:)
+         real(kind=ISFFT_REAL_KIND), allocatable :: temp(:,:,:)
          integer, intent(in) :: s1,s2,s3, bi,bj,bk, variant, trans_type
          integer(int64) :: c0,c1, rate
          integer :: r
@@ -226,8 +226,8 @@ contains
       end function Bench_Transpose_Once
       !------------------------------------------------------------
       subroutine Kernel_Transpose_Test(ain, aout, dim1,dim2,dim3, bi,bj,bk, variant, trans_type)
-         real(kind=SPLASH_REAL_KIND), intent(in)  :: ain(:,:,:)
-         real(kind=SPLASH_REAL_KIND), intent(out) :: aout(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(in)  :: ain(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(out) :: aout(:,:,:)
          integer, intent(in) :: dim1,dim2,dim3, bi,bj,bk, variant, trans_type
          integer :: ii, jj, kk, iend, jend, kend, i, j, k
 
@@ -292,8 +292,8 @@ contains
       end subroutine Kernel_Transpose_Test
       !------------------------------------------------------------
       subroutine Scrub_Transpose_Cache(a, b, s1,s2,s3)
-         real(kind=SPLASH_REAL_KIND), intent(in)  :: a(:,:,:)
-         real(kind=SPLASH_REAL_KIND), intent(out) :: b(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(in)  :: a(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(out) :: b(:,:,:)
          integer, intent(in) :: s1,s2,s3
          integer :: i,j,k
          do k = 1, s3, max(1, s3/8)
@@ -306,8 +306,8 @@ contains
       end subroutine Scrub_Transpose_Cache
       !------------------------------------------------------------
       subroutine Refine_Transpose_Around(ain, aout, s1,s2,s3, bi,bj,bk, variant, trans_type)
-         real(kind=SPLASH_REAL_KIND), intent(in)  :: ain(:,:,:)
-         real(kind=SPLASH_REAL_KIND), intent(out) :: aout(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(in)  :: ain(:,:,:)
+         real(kind=ISFFT_REAL_KIND), intent(out) :: aout(:,:,:)
          integer, intent(in) :: s1,s2,s3, variant, trans_type
          integer, intent(inout) :: bi,bj,bk
          integer :: c_bi, c_bj, c_bk
@@ -365,4 +365,4 @@ contains
    end subroutine Reset_LocalTranspose
    !----------------------------------------------------------------------
 
-end module SPLASH_LT_Tuning
+end module ISFFT_LT_Tuning

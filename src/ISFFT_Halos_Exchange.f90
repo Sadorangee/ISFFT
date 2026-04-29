@@ -1,29 +1,29 @@
 !----------------------------------------------------------------------
-module SPLASH_Halos_Exchange
-   use SPLASH_Parameters
-   use SPLASH_MPI_Constants
+module ISFFT_Halos_Exchange
+   use ISFFT_Parameters
+   use ISFFT_MPI_Constants
    implicit none
    
    private
-   public :: SPLASH_Update_Periodic_Boundary_xyz
+   public :: ISFFT_Update_Periodic_Boundary_xyz
 
 contains
 
 !----------------------------------------------------------------------
-subroutine SPLASH_Update_Periodic_Boundary_xyz(f)
+subroutine ISFFT_Update_Periodic_Boundary_xyz(f)
    implicit none
-   real(kind=SPLASH_REAL_KIND):: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
-   call SPLASH_Update_Periodic_Boundary_x(f)
-   call SPLASH_Update_Periodic_Boundary_y(f)
-   call SPLASH_Update_Periodic_Boundary_z(f)
+   real(kind=ISFFT_REAL_KIND):: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   call ISFFT_Update_Periodic_Boundary_x(f)
+   call ISFFT_Update_Periodic_Boundary_y(f)
+   call ISFFT_Update_Periodic_Boundary_z(f)
    return
-end subroutine SPLASH_Update_Periodic_Boundary_xyz
+end subroutine ISFFT_Update_Periodic_Boundary_xyz
  !----------------------------------------------------------------------
-subroutine SPLASH_Update_Periodic_Boundary_x(f)
-   use SPLASH_MPI_Part, only: SPLASH_get_id, SPLASH_mod
+subroutine ISFFT_Update_Periodic_Boundary_x(f)
+   use ISFFT_MPI_Part, only: ISFFT_get_id, ISFFT_mod
    implicit none
    integer :: Iperiodic1 = 1
-   real(kind=SPLASH_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+   real(kind=ISFFT_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
 
    integer :: ierr, Status(MPI_STATUS_SIZE)
    integer :: hop, max_hops_left, max_hops_right
@@ -34,8 +34,8 @@ subroutine SPLASH_Update_Periodic_Boundary_x(f)
    integer :: i, j, k, k1
    integer :: tag_lr, tag_rl
 
-   real(kind=SPLASH_REAL_KIND), allocatable :: send_right_buf(:), recv_left_buf(:)
-   real(kind=SPLASH_REAL_KIND), allocatable :: send_left_buf(:),  recv_right_buf(:)
+   real(kind=ISFFT_REAL_KIND), allocatable :: send_right_buf(:), recv_left_buf(:)
+   real(kind=ISFFT_REAL_KIND), allocatable :: send_left_buf(:),  recv_right_buf(:)
 
    if (LAP <= 0) return
 
@@ -71,9 +71,9 @@ subroutine SPLASH_Update_Periodic_Boundary_x(f)
 
 
       if (hop <= max_hops_left) then
-         rL = SPLASH_mod(npx - hop, npx0)
+         rL = ISFFT_mod(npx - hop, npx0)
          if (Iperiodic1 == 1 .or. npx - hop >= 0) then
-            proc_left = SPLASH_get_id(rL, npy, npz)
+            proc_left = ISFFT_get_id(rL, npy, npz)
          else
             proc_left = MPI_PROC_NULL
          end if
@@ -82,9 +82,9 @@ subroutine SPLASH_Update_Periodic_Boundary_x(f)
       end if
 
       if (hop <= max_hops_right) then
-         rR = SPLASH_mod(npx + hop, npx0)
+         rR = ISFFT_mod(npx + hop, npx0)
          if (Iperiodic1 == 1 .or. npx + hop <= npx0-1) then
-            proc_right = SPLASH_get_id(rR, npy, npz)
+            proc_right = ISFFT_get_id(rR, npy, npz)
          else
             proc_right = MPI_PROC_NULL
          end if
@@ -109,7 +109,7 @@ subroutine SPLASH_Update_Periodic_Boundary_x(f)
 
          cnt_send_right = LAP
          do s=1,hop-1
-            cnt_send_right = cnt_send_right - i_nn( SPLASH_mod(rR - s, npx0) )
+            cnt_send_right = cnt_send_right - i_nn( ISFFT_mod(rR - s, npx0) )
          end do
          if (cnt_send_right < 0) cnt_send_right = 0
          cnt_send_right = min( cnt_send_right, i_nn(npx) )
@@ -121,7 +121,7 @@ subroutine SPLASH_Update_Periodic_Boundary_x(f)
 
          cnt_send_left = LAP
          do s=1,hop-1
-            cnt_send_left = cnt_send_left - i_nn( SPLASH_mod(rL + s, npx0) )
+            cnt_send_left = cnt_send_left - i_nn( ISFFT_mod(rL + s, npx0) )
          end do
          if (cnt_send_left < 0) cnt_send_left = 0
          cnt_send_left = min( cnt_send_left, i_nn(npx) )
@@ -143,8 +143,8 @@ subroutine SPLASH_Update_Periodic_Boundary_x(f)
          end do
       end if
 
-      call MPI_Sendrecv( send_right_buf, cnt_send_right*ny*nz, SPLASH_DATA_TYPE, proc_right, tag_lr, &
-         recv_left_buf,  cnt_recv_left *ny*nz, SPLASH_DATA_TYPE, proc_left,  tag_lr, &
+      call MPI_Sendrecv( send_right_buf, cnt_send_right*ny*nz, ISFFT_DATA_TYPE, proc_right, tag_lr, &
+         recv_left_buf,  cnt_recv_left *ny*nz, ISFFT_DATA_TYPE, proc_left,  tag_lr, &
          MPI_COMM_WORLD, Status, ierr )
 
 
@@ -178,8 +178,8 @@ subroutine SPLASH_Update_Periodic_Boundary_x(f)
          end do
       end if
 
-      call MPI_Sendrecv( send_left_buf,  cnt_send_left *ny*nz, SPLASH_DATA_TYPE, proc_left,  tag_rl, &
-         recv_right_buf, cnt_recv_right*ny*nz, SPLASH_DATA_TYPE, proc_right, tag_rl, &
+      call MPI_Sendrecv( send_left_buf,  cnt_send_left *ny*nz, ISFFT_DATA_TYPE, proc_left,  tag_rl, &
+         recv_right_buf, cnt_recv_right*ny*nz, ISFFT_DATA_TYPE, proc_right, tag_rl, &
          MPI_COMM_WORLD, Status, ierr )
 
 
@@ -200,16 +200,16 @@ subroutine SPLASH_Update_Periodic_Boundary_x(f)
       hop = hop + 1
    end do
 
-   if (SPLASH_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (ISFFT_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
    deallocate(send_right_buf, recv_left_buf, send_left_buf, recv_right_buf)
-end subroutine SPLASH_Update_Periodic_Boundary_x
+end subroutine ISFFT_Update_Periodic_Boundary_x
  !----------------------------------------------------------------------
-subroutine SPLASH_Update_Periodic_Boundary_y(f)
-   use SPLASH_MPI_Part, only: SPLASH_get_id, SPLASH_mod
+subroutine ISFFT_Update_Periodic_Boundary_y(f)
+   use ISFFT_MPI_Part, only: ISFFT_get_id, ISFFT_mod
    implicit none
    integer :: Iperiodic2 = 1
-   real(kind=SPLASH_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+   real(kind=ISFFT_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
 
    integer :: ierr, Status(MPI_STATUS_SIZE)
    integer :: hop, max_hops_dn, max_hops_up
@@ -220,8 +220,8 @@ subroutine SPLASH_Update_Periodic_Boundary_y(f)
    integer :: i, j, k, k1
    integer :: tag_du, tag_ud
 
-   real(kind=SPLASH_REAL_KIND), allocatable :: send_up_buf(:), recv_dn_buf(:)
-   real(kind=SPLASH_REAL_KIND), allocatable :: send_dn_buf(:), recv_up_buf(:)
+   real(kind=ISFFT_REAL_KIND), allocatable :: send_up_buf(:), recv_dn_buf(:)
+   real(kind=ISFFT_REAL_KIND), allocatable :: send_dn_buf(:), recv_up_buf(:)
 
    if (LAP <= 0) return
 
@@ -256,9 +256,9 @@ subroutine SPLASH_Update_Periodic_Boundary_y(f)
       (filled_up < LAP .and. hop <= max_hops_up) )
 
       if (hop <= max_hops_dn) then
-         rD = SPLASH_mod(npy - hop, npy0)
+         rD = ISFFT_mod(npy - hop, npy0)
          if (Iperiodic2 == 1 .or. npy - hop >= 0) then
-            proc_dn = SPLASH_get_id(npx, rD, npz)
+            proc_dn = ISFFT_get_id(npx, rD, npz)
          else
             proc_dn = MPI_PROC_NULL
          end if
@@ -267,9 +267,9 @@ subroutine SPLASH_Update_Periodic_Boundary_y(f)
       end if
 
       if (hop <= max_hops_up) then
-         rU = SPLASH_mod(npy + hop, npy0)
+         rU = ISFFT_mod(npy + hop, npy0)
          if (Iperiodic2 == 1 .or. npy + hop <= npy0-1) then
-            proc_up = SPLASH_get_id(npx, rU, npz)
+            proc_up = ISFFT_get_id(npx, rU, npz)
          else
             proc_up = MPI_PROC_NULL
          end if
@@ -291,7 +291,7 @@ subroutine SPLASH_Update_Periodic_Boundary_y(f)
       if (proc_up /= MPI_PROC_NULL) then
          cnt_send_up = LAP
          do s=1,hop-1
-            cnt_send_up = cnt_send_up - j_nn( SPLASH_mod(rU - s, npy0) )
+            cnt_send_up = cnt_send_up - j_nn( ISFFT_mod(rU - s, npy0) )
          end do
          if (cnt_send_up < 0) cnt_send_up = 0
          cnt_send_up = min( cnt_send_up, j_nn(npy) )
@@ -301,7 +301,7 @@ subroutine SPLASH_Update_Periodic_Boundary_y(f)
       if (proc_dn /= MPI_PROC_NULL) then
          cnt_send_dn = LAP
          do s=1,hop-1
-            cnt_send_dn = cnt_send_dn - j_nn( SPLASH_mod(rD + s, npy0) )
+            cnt_send_dn = cnt_send_dn - j_nn( ISFFT_mod(rD + s, npy0) )
          end do
          if (cnt_send_dn < 0) cnt_send_dn = 0
          cnt_send_dn = min( cnt_send_dn, j_nn(npy) )
@@ -320,8 +320,8 @@ subroutine SPLASH_Update_Periodic_Boundary_y(f)
          end do
       end if
 
-      call MPI_Sendrecv( send_up_buf,  cnt_send_up*nx*nz, SPLASH_DATA_TYPE, proc_up, tag_du, &
-         recv_dn_buf,  cnt_recv_dn*nx*nz, SPLASH_DATA_TYPE, proc_dn, tag_du, &
+      call MPI_Sendrecv( send_up_buf,  cnt_send_up*nx*nz, ISFFT_DATA_TYPE, proc_up, tag_du, &
+         recv_dn_buf,  cnt_recv_dn*nx*nz, ISFFT_DATA_TYPE, proc_dn, tag_du, &
          MPI_COMM_WORLD, Status, ierr )
 
       if (cnt_recv_dn > 0) then
@@ -350,8 +350,8 @@ subroutine SPLASH_Update_Periodic_Boundary_y(f)
          end do
       end if
 
-      call MPI_Sendrecv( send_dn_buf,  cnt_send_dn*nx*nz, SPLASH_DATA_TYPE, proc_dn, tag_ud, &
-         recv_up_buf,  cnt_recv_up*nx*nz, SPLASH_DATA_TYPE, proc_up, tag_ud, &
+      call MPI_Sendrecv( send_dn_buf,  cnt_send_dn*nx*nz, ISFFT_DATA_TYPE, proc_dn, tag_ud, &
+         recv_up_buf,  cnt_recv_up*nx*nz, ISFFT_DATA_TYPE, proc_up, tag_ud, &
          MPI_COMM_WORLD, Status, ierr )
 
       if (cnt_recv_up > 0) then
@@ -370,16 +370,16 @@ subroutine SPLASH_Update_Periodic_Boundary_y(f)
       hop = hop + 1
    end do
 
-   if (SPLASH_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (ISFFT_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
    deallocate(send_up_buf, recv_dn_buf, send_dn_buf, recv_up_buf)
-end subroutine SPLASH_Update_Periodic_Boundary_y
+end subroutine ISFFT_Update_Periodic_Boundary_y
  !----------------------------------------------------------------------
-subroutine SPLASH_Update_Periodic_Boundary_z(f)
-   use SPLASH_MPI_Part, only: SPLASH_get_id, SPLASH_mod
+subroutine ISFFT_Update_Periodic_Boundary_z(f)
+   use ISFFT_MPI_Part, only: ISFFT_get_id, ISFFT_mod
    implicit none
    integer :: Iperiodic3 = 1
-   real(kind=SPLASH_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+   real(kind=ISFFT_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
 
    integer :: ierr, Status(MPI_STATUS_SIZE)
    integer :: hop, max_hops_bk, max_hops_fr
@@ -390,8 +390,8 @@ subroutine SPLASH_Update_Periodic_Boundary_z(f)
    integer :: i, j, k, k1
    integer :: tag_bf, tag_fb
 
-   real(kind=SPLASH_REAL_KIND), allocatable :: send_fr_buf(:), recv_bk_buf(:)
-   real(kind=SPLASH_REAL_KIND), allocatable :: send_bk_buf(:), recv_fr_buf(:)
+   real(kind=ISFFT_REAL_KIND), allocatable :: send_fr_buf(:), recv_bk_buf(:)
+   real(kind=ISFFT_REAL_KIND), allocatable :: send_bk_buf(:), recv_fr_buf(:)
 
    if (LAP <= 0) return
 
@@ -426,9 +426,9 @@ subroutine SPLASH_Update_Periodic_Boundary_z(f)
       (filled_fr < LAP .and. hop <= max_hops_fr) )
 
       if (hop <= max_hops_bk) then
-         rB = SPLASH_mod(npz - hop, npz0)
+         rB = ISFFT_mod(npz - hop, npz0)
          if (Iperiodic3 == 1 .or. npz - hop >= 0) then
-            proc_bk = SPLASH_get_id(npx, npy, rB)
+            proc_bk = ISFFT_get_id(npx, npy, rB)
          else
             proc_bk = MPI_PROC_NULL
          end if
@@ -437,9 +437,9 @@ subroutine SPLASH_Update_Periodic_Boundary_z(f)
       end if
 
       if (hop <= max_hops_fr) then
-         rF = SPLASH_mod(npz + hop, npz0)
+         rF = ISFFT_mod(npz + hop, npz0)
          if (Iperiodic3 == 1 .or. npz + hop <= npz0-1) then
-            proc_fr = SPLASH_get_id(npx, npy, rF)
+            proc_fr = ISFFT_get_id(npx, npy, rF)
          else
             proc_fr = MPI_PROC_NULL
          end if
@@ -461,7 +461,7 @@ subroutine SPLASH_Update_Periodic_Boundary_z(f)
       if (proc_fr /= MPI_PROC_NULL) then
          cnt_send_fr = LAP
          do s=1,hop-1
-            cnt_send_fr = cnt_send_fr - k_nn( SPLASH_mod(rF - s, npz0) )
+            cnt_send_fr = cnt_send_fr - k_nn( ISFFT_mod(rF - s, npz0) )
          end do
          if (cnt_send_fr < 0) cnt_send_fr = 0
          cnt_send_fr = min( cnt_send_fr, k_nn(npz) )
@@ -471,7 +471,7 @@ subroutine SPLASH_Update_Periodic_Boundary_z(f)
       if (proc_bk /= MPI_PROC_NULL) then
          cnt_send_bk = LAP
          do s=1,hop-1
-            cnt_send_bk = cnt_send_bk - k_nn( SPLASH_mod(rB + s, npz0) )
+            cnt_send_bk = cnt_send_bk - k_nn( ISFFT_mod(rB + s, npz0) )
          end do
          if (cnt_send_bk < 0) cnt_send_bk = 0
          cnt_send_bk = min( cnt_send_bk, k_nn(npz) )
@@ -490,8 +490,8 @@ subroutine SPLASH_Update_Periodic_Boundary_z(f)
          end do
       end if
 
-      call MPI_Sendrecv( send_fr_buf,  cnt_send_fr*nx*ny, SPLASH_DATA_TYPE, proc_fr, tag_bf, &
-         recv_bk_buf,  cnt_recv_bk*nx*ny, SPLASH_DATA_TYPE, proc_bk, tag_bf, &
+      call MPI_Sendrecv( send_fr_buf,  cnt_send_fr*nx*ny, ISFFT_DATA_TYPE, proc_fr, tag_bf, &
+         recv_bk_buf,  cnt_recv_bk*nx*ny, ISFFT_DATA_TYPE, proc_bk, tag_bf, &
          MPI_COMM_WORLD, Status, ierr )
 
       if (cnt_recv_bk > 0) then
@@ -520,8 +520,8 @@ subroutine SPLASH_Update_Periodic_Boundary_z(f)
          end do
       end if
 
-      call MPI_Sendrecv( send_bk_buf,  cnt_send_bk*nx*ny, SPLASH_DATA_TYPE, proc_bk, tag_fb, &
-         recv_fr_buf,  cnt_recv_fr*nx*ny, SPLASH_DATA_TYPE, proc_fr, tag_fb, &
+      call MPI_Sendrecv( send_bk_buf,  cnt_send_bk*nx*ny, ISFFT_DATA_TYPE, proc_bk, tag_fb, &
+         recv_fr_buf,  cnt_recv_fr*nx*ny, ISFFT_DATA_TYPE, proc_fr, tag_fb, &
          MPI_COMM_WORLD, Status, ierr )
 
       if (cnt_recv_fr > 0) then
@@ -540,11 +540,11 @@ subroutine SPLASH_Update_Periodic_Boundary_z(f)
       hop = hop + 1
    end do
 
-   if (SPLASH_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (ISFFT_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
    deallocate(send_fr_buf, recv_bk_buf, send_bk_buf, recv_fr_buf)
-end subroutine SPLASH_Update_Periodic_Boundary_z
+end subroutine ISFFT_Update_Periodic_Boundary_z
  !----------------------------------------------------------------------
 
-end module SPLASH_Halos_Exchange
+end module ISFFT_Halos_Exchange
  !----------------------------------------------------------------------

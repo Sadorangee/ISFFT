@@ -1,30 +1,30 @@
-module SPLASH_MPI_Part
-   use SPLASH_Parameters
-   use SPLASH_MPI_Constants
+module ISFFT_MPI_Part
+   use ISFFT_Parameters
+   use ISFFT_MPI_Constants
    implicit none
 
 contains
 
 !----------------------------------------------------------------------
-   integer function SPLASH_mod(i,n)
-      use SPLASH_Parameters
-      use SPLASH_MPI_Constants
+   integer function ISFFT_mod(i,n)
+      use ISFFT_Parameters
+      use ISFFT_MPI_Constants
 
       integer, intent(in) :: i,n
 
       if(i.lt.0) then
-         SPLASH_mod=i+n
+         ISFFT_mod=i+n
       else if (i.gt.n-1) then
-         SPLASH_mod=i-n
+         ISFFT_mod=i-n
       else
-         SPLASH_mod=i
+         ISFFT_mod=i
       endif
 
-   end function SPLASH_mod
+   end function ISFFT_mod
    !----------------------------------------------------------------------
-   subroutine SPLASH_get_i_node(i_global,node_i,i_local)
-      use SPLASH_Parameters
-      use SPLASH_MPI_Constants
+   subroutine ISFFT_get_i_node(i_global,node_i,i_local)
+      use ISFFT_Parameters
+      use ISFFT_MPI_Constants
 
       integer :: i_global,node_i,i_local,ia
 
@@ -34,11 +34,11 @@ contains
       enddo
       i_local=i_global-i_offset(node_i)+1
 
-   end subroutine SPLASH_get_i_node
+   end subroutine ISFFT_get_i_node
    !----------------------------------------------------------------------
-   subroutine SPLASH_get_j_node(j_global,node_j,j_local)
-      use SPLASH_Parameters
-      use SPLASH_MPI_Constants
+   subroutine ISFFT_get_j_node(j_global,node_j,j_local)
+      use ISFFT_Parameters
+      use ISFFT_MPI_Constants
 
       integer :: j_global,node_j,j_local,ja
 
@@ -47,11 +47,11 @@ contains
          if(j_global.ge.j_offset(ja) .and. j_global .lt. j_offset(ja+1) ) node_j=ja
       enddo
       j_local=j_global-j_offset(node_j)+1
-   end subroutine SPLASH_get_j_node
+   end subroutine ISFFT_get_j_node
    !----------------------------------------------------------------------
-   subroutine SPLASH_get_k_node(k_global,node_k,k_local)
-      use SPLASH_Parameters
-      use SPLASH_MPI_Constants
+   subroutine ISFFT_get_k_node(k_global,node_k,k_local)
+      use ISFFT_Parameters
+      use ISFFT_MPI_Constants
 
       integer :: k_global,node_k,k_local,ka
 
@@ -60,24 +60,24 @@ contains
          if(k_global .ge. k_offset(ka) .and. k_global .lt. k_offset(ka+1) ) node_k=ka
       enddo
       k_local=k_global-k_offset(node_k)+1
-   end subroutine SPLASH_get_k_node
+   end subroutine ISFFT_get_k_node
    !----------------------------------------------------------------------
-   integer function SPLASH_get_id(npx1,npy1,npz1)
-      use SPLASH_Parameters
-      use SPLASH_MPI_Constants
+   integer function ISFFT_get_id(npx1,npy1,npz1)
+      use ISFFT_Parameters
+      use ISFFT_MPI_Constants
 
       integer :: npx1,npy1,npz1
 
-      SPLASH_get_id = npz1*(npx0*npy0)+npy1*npx0+npx1
+      ISFFT_get_id = npz1*(npx0*npy0)+npy1*npx0+npx1
 
-   end function SPLASH_get_id
+   end function ISFFT_get_id
    !----------------------------------------------------------------------
 
 
    !----------------------------------------------------------------------
-   subroutine SPLASH_part()
-      use SPLASH_Parameters
-      use SPLASH_MPI_Constants
+   subroutine ISFFT_part()
+      use ISFFT_Parameters
+      use ISFFT_MPI_Constants
       
       integer :: k,ka,ierr
       integer :: npx1,npy1,npz1,npx2,npy2,npz2
@@ -125,30 +125,30 @@ contains
          if(k .lt. mod(nz_global,npz0)) k_nn(k)=k_nn(k)+1
       enddo
 
-      npx1=SPLASH_mod(npx-1,npx0)
-      npx2=SPLASH_mod(npx+1,npx0)
+      npx1=ISFFT_mod(npx-1,npx0)
+      npx2=ISFFT_mod(npx+1,npx0)
       ID_XM1=npz*(npx0*npy0)+npy*npx0+npx1    ! -1 proc in x-direction
       ID_XP1=npz*(npx0*npy0)+npy*npx0+npx2    ! +1 proc in x-direction
 
 
-      npy1=SPLASH_mod(npy-1,npy0)
-      npy2=SPLASH_mod(npy+1,npy0)
+      npy1=ISFFT_mod(npy-1,npy0)
+      npy2=ISFFT_mod(npy+1,npy0)
       ID_YM1=npz*(npx0*npy0)+npy1*npx0+npx
       ID_YP1=npz*(npx0*npy0)+npy2*npx0+npx
 
 
-      npz1=SPLASH_mod(npz-1,npz0)
-      npz2=SPLASH_mod(npz+1,npz0)
+      npz1=ISFFT_mod(npz-1,npz0)
+      npz2=ISFFT_mod(npz+1,npz0)
       ID_ZM1=npz1*(npx0*npy0)+npy*npx0+npx
       ID_ZP1=npz2*(npx0*npy0)+npy*npx0+npx
 
       call MPI_barrier(MPI_COMM_WORLD,ierr)
 
-   end subroutine SPLASH_part
+   end subroutine ISFFT_part
    !----------------------------------------------------------------------
-   subroutine SPLASH_part_change(npx0_new,npy0_new,npz0_new)
-      use SPLASH_Parameters
-      use SPLASH_MPI_Constants
+   subroutine ISFFT_part_change(npx0_new,npy0_new,npz0_new)
+      use ISFFT_Parameters
+      use ISFFT_MPI_Constants
       integer :: npx0_new, npy0_new, npz0_new
       integer :: ierr
 
@@ -165,10 +165,10 @@ contains
       call mpi_comm_free(MPI_COMM_X,ierr)
       call mpi_comm_free(MPI_COMM_Y,ierr)
       call mpi_comm_free(MPI_COMM_Z,ierr)
-      call SPLASH_part
+      call ISFFT_part
 
-   end subroutine SPLASH_part_change
+   end subroutine ISFFT_part_change
    !----------------------------------------------------------------------
 
 
-end module SPLASH_MPI_Part
+end module ISFFT_MPI_Part

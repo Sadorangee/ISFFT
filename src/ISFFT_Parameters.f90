@@ -1,5 +1,5 @@
-module  SPLASH_Parameters
-   use SPLASH_Precision
+module  ISFFT_Parameters
+   use ISFFT_Precision
    implicit none
 
    ! ----------------------------------------------------------
@@ -9,9 +9,9 @@ module  SPLASH_Parameters
 
    !-----------------------------------------------------------
    ! Coordinate parameters
-   real(kind=SPLASH_REAL_KIND),save:: SLx,SLy,SLz
+   real(kind=ISFFT_REAL_KIND),save:: SLx,SLy,SLz
 
-end module  SPLASH_Parameters
+end module  ISFFT_Parameters
 
 
 

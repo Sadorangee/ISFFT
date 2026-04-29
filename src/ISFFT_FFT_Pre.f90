@@ -1,6 +1,6 @@
-module SPLASH_FFT_Pre
+module ISFFT_FFT_Pre
    use, intrinsic :: iso_fortran_env, only: output_unit
-   use SPLASH_Buffer, only: &
+   use ISFFT_Buffer, only: &
       FFT_PRECOMPUTE_MAX, FFT_Precompute_Slot, &
       fft_precompute_slots, fft_precompute_count, fft_precompute_next_slot
    implicit none
@@ -81,12 +81,12 @@ contains
    end function Find_FFT_Precompute_Slot
    !----------------------------------------------------------------------
    subroutine Build_Rev_Twiddle(len, rev, twc, tws)
-      use SPLASH_Precision, only: SPLASH_REAL_KIND
+      use ISFFT_Precision, only: ISFFT_REAL_KIND
       integer, intent(in) :: len
       integer, allocatable, intent(inout) :: rev(:)
-      real(kind=SPLASH_REAL_KIND), allocatable, intent(inout) :: twc(:), tws(:)
+      real(kind=ISFFT_REAL_KIND), allocatable, intent(inout) :: twc(:), tws(:)
       integer :: i, j, k, mm
-      real(kind=SPLASH_REAL_KIND), parameter :: pi = 3.141592653589793_SPLASH_REAL_KIND
+      real(kind=ISFFT_REAL_KIND), parameter :: pi = 3.141592653589793_ISFFT_REAL_KIND
 
       call Validate_FFT_Length(len, 'Build_Rev_Twiddle')
 
@@ -108,8 +108,8 @@ contains
       end do
 
       do k = 0, len/2 - 1
-         twc(k+1) = cos((2.0_SPLASH_REAL_KIND*pi*k)/len)
-         tws(k+1) = sin((2.0_SPLASH_REAL_KIND*pi*k)/len)
+         twc(k+1) = cos((2.0_ISFFT_REAL_KIND*pi*k)/len)
+         tws(k+1) = sin((2.0_ISFFT_REAL_KIND*pi*k)/len)
       end do
    end subroutine Build_Rev_Twiddle
    !----------------------------------------------------------------------
@@ -210,4 +210,4 @@ contains
    end subroutine FFT_Print_Precompute_Cache
    !----------------------------------------------------------------------
 
-end module SPLASH_FFT_Pre
+end module ISFFT_FFT_Pre

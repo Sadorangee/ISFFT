@@ -1,24 +1,24 @@
-module SPLASH_FFT_kernel
-   use SPLASH_MPI_Constants
-   use SPLASH_FFT_Pre, only: Ensure_FFT_Precompute
-   use SPLASH_Buffer, only: fft_precompute_slots
+module ISFFT_FFT_kernel
+   use ISFFT_MPI_Constants
+   use ISFFT_FFT_Pre, only: Ensure_FFT_Precompute
+   use ISFFT_Buffer, only: fft_precompute_slots
    implicit none
 
    private
-   public :: SPLASH_1D_FFT_c2c, SPLASH_1D_FFT_r2c
+   public :: ISFFT_1D_FFT_c2c, ISFFT_1D_FFT_r2c
 
 contains
 
    !----------------------------------------------------------------------
-   subroutine SPLASH_1D_FFT_core_radix2(len, fr, fi, sign, rev, twc, tws)
+   subroutine ISFFT_1D_FFT_core_radix2(len, fr, fi, sign, rev, twc, tws)
       integer, intent(in) :: len, sign
-      real(kind=SPLASH_REAL_KIND), intent(inout) :: fr(len), fi(len)
+      real(kind=ISFFT_REAL_KIND), intent(inout) :: fr(len), fi(len)
       integer, intent(in) :: rev(:)
-      real(kind=SPLASH_REAL_KIND), intent(in) :: twc(:), tws(:)
+      real(kind=ISFFT_REAL_KIND), intent(in) :: twc(:), tws(:)
 
       integer :: i, j, l, m, iistep, kstep
-      real(kind=SPLASH_REAL_KIND) :: wr, wi, tr, ti, xn
-      real(kind=SPLASH_REAL_KIND), allocatable :: rfr(:), rfi(:)
+      real(kind=ISFFT_REAL_KIND) :: wr, wi, tr, ti, xn
+      real(kind=ISFFT_REAL_KIND), allocatable :: rfr(:), rfi(:)
 
       allocate(rfr(len), rfi(len))
       do i = 1, len
@@ -36,7 +36,7 @@ contains
          kstep = len / iistep
          do m = 0, l-1
             wr = twc(1 + m*kstep)
-            wi = -real(sign, kind=SPLASH_REAL_KIND) * tws(1 + m*kstep)
+            wi = -real(sign, kind=ISFFT_REAL_KIND) * tws(1 + m*kstep)
             do i = m+1, len, iistep
                j  = i + l
                tr = wr*fr(j) - wi*fi(j)
@@ -51,34 +51,34 @@ contains
       end do
 
       if (sign >= 0) then
-         xn = 1.0_SPLASH_REAL_KIND / real(len, kind=SPLASH_REAL_KIND)
+         xn = 1.0_ISFFT_REAL_KIND / real(len, kind=ISFFT_REAL_KIND)
          do i = 1, len
             fr(i) = fr(i) * xn
             fi(i) = fi(i) * xn
          end do
       end if
-   end subroutine SPLASH_1D_FFT_core_radix2
+   end subroutine ISFFT_1D_FFT_core_radix2
    !----------------------------------------------------------------------
-   subroutine SPLASH_1D_FFT_c2c(n, fr, fi, sign)
+   subroutine ISFFT_1D_FFT_c2c(n, fr, fi, sign)
       integer, intent(in) :: n, sign
-      real(kind=SPLASH_REAL_KIND), intent(inout) :: fr(n), fi(n)
+      real(kind=ISFFT_REAL_KIND), intent(inout) :: fr(n), fi(n)
       integer :: slot_n
 
       call Ensure_FFT_Precompute(n, slot_n)
-      call SPLASH_1D_FFT_core_radix2(n, fr, fi, sign, fft_precompute_slots(slot_n)%rev, &
+      call ISFFT_1D_FFT_core_radix2(n, fr, fi, sign, fft_precompute_slots(slot_n)%rev, &
          fft_precompute_slots(slot_n)%twc, fft_precompute_slots(slot_n)%tws)
-   end subroutine SPLASH_1D_FFT_c2c
+   end subroutine ISFFT_1D_FFT_c2c
    !----------------------------------------------------------------------
-   subroutine SPLASH_1D_FFT_r2c(n, fr, fi, sign)
+   subroutine ISFFT_1D_FFT_r2c(n, fr, fi, sign)
       integer, intent(in) :: n, sign
-      real(kind=SPLASH_REAL_KIND), intent(inout) :: fr(n), fi(n)
+      real(kind=ISFFT_REAL_KIND), intent(inout) :: fr(n), fi(n)
 
       integer :: M, k, slot_n, slot_m
-      real(kind=SPLASH_REAL_KIND), allocatable :: yr(:), yi(:)
-      real(kind=SPLASH_REAL_KIND) :: ur, ui, vr, vi
-      real(kind=SPLASH_REAL_KIND) :: t1r, t1i, t2r, t2i
-      real(kind=SPLASH_REAL_KIND) :: wr, wi, qr, qi
-      real(kind=SPLASH_REAL_KIND) :: a0, b0
+      real(kind=ISFFT_REAL_KIND), allocatable :: yr(:), yi(:)
+      real(kind=ISFFT_REAL_KIND) :: ur, ui, vr, vi
+      real(kind=ISFFT_REAL_KIND) :: t1r, t1i, t2r, t2i
+      real(kind=ISFFT_REAL_KIND) :: wr, wi, qr, qi
+      real(kind=ISFFT_REAL_KIND) :: a0, b0
 
       if (mod(n,2) /= 0) stop 'FFT1D_r2c: n must be even'
       M = n/2
@@ -94,15 +94,15 @@ contains
             yi(k) = fr(2*k)
          end do
 
-         call SPLASH_1D_FFT_core_radix2(M, yr, yi, +1, fft_precompute_slots(slot_m)%rev, &
+         call ISFFT_1D_FFT_core_radix2(M, yr, yi, +1, fft_precompute_slots(slot_m)%rev, &
             fft_precompute_slots(slot_m)%twc, fft_precompute_slots(slot_m)%tws)
 
          a0 = yr(1)
          b0 = yi(1)
-         fr(1)   = 0.5_SPLASH_REAL_KIND*(a0 + b0)
-         fi(1)   = 0.0_SPLASH_REAL_KIND
-         fr(M+1) = 0.5_SPLASH_REAL_KIND*(a0 - b0)
-         fi(M+1) = 0.0_SPLASH_REAL_KIND
+         fr(1)   = 0.5_ISFFT_REAL_KIND*(a0 + b0)
+         fi(1)   = 0.0_ISFFT_REAL_KIND
+         fr(M+1) = 0.5_ISFFT_REAL_KIND*(a0 - b0)
+         fi(M+1) = 0.0_ISFFT_REAL_KIND
 
          do k = 1, M-1
             ur = yr(k+1)
@@ -110,10 +110,10 @@ contains
             vr = yr(M-k+1)
             vi = yi(M-k+1)
 
-            t1r = 0.5_SPLASH_REAL_KIND * (ur + vr)
-            t1i = 0.5_SPLASH_REAL_KIND * (ui - vi)
-            t2r = 0.5_SPLASH_REAL_KIND * (ur - vr)
-            t2i = 0.5_SPLASH_REAL_KIND * (ui + vi)
+            t1r = 0.5_ISFFT_REAL_KIND * (ur + vr)
+            t1i = 0.5_ISFFT_REAL_KIND * (ui - vi)
+            t2r = 0.5_ISFFT_REAL_KIND * (ur - vr)
+            t2i = 0.5_ISFFT_REAL_KIND * (ui + vi)
 
             wr = fft_precompute_slots(slot_n)%twc(k+1)
             wi = -fft_precompute_slots(slot_n)%tws(k+1)
@@ -132,10 +132,10 @@ contains
          yi(1) = a0 - b0
 
          do k = 1, M-1
-            t1r = 0.5_SPLASH_REAL_KIND*(fr(k+1) + fr(M-k+1))
-            t1i = 0.5_SPLASH_REAL_KIND*(fi(k+1) - fi(M-k+1))
-            t2r = 0.5_SPLASH_REAL_KIND*(fr(k+1) - fr(M-k+1))
-            t2i = 0.5_SPLASH_REAL_KIND*(fi(k+1) + fi(M-k+1))
+            t1r = 0.5_ISFFT_REAL_KIND*(fr(k+1) + fr(M-k+1))
+            t1i = 0.5_ISFFT_REAL_KIND*(fi(k+1) - fi(M-k+1))
+            t2r = 0.5_ISFFT_REAL_KIND*(fr(k+1) - fr(M-k+1))
+            t2i = 0.5_ISFFT_REAL_KIND*(fi(k+1) + fi(M-k+1))
 
             wr = fft_precompute_slots(slot_n)%twc(k+1)
             wi = fft_precompute_slots(slot_n)%tws(k+1)
@@ -152,7 +152,7 @@ contains
             yi(M-k+1) = -(t1i - t2i)
          end do
 
-         call SPLASH_1D_FFT_core_radix2(M, yr, yi, -1, fft_precompute_slots(slot_m)%rev, &
+         call ISFFT_1D_FFT_core_radix2(M, yr, yi, -1, fft_precompute_slots(slot_m)%rev, &
             fft_precompute_slots(slot_m)%twc, fft_precompute_slots(slot_m)%tws)
 
          do k = 1, M
@@ -162,7 +162,7 @@ contains
       end if
 
       deallocate(yr, yi)
-   end subroutine SPLASH_1D_FFT_r2c
+   end subroutine ISFFT_1D_FFT_r2c
    !----------------------------------------------------------------------
 
-end module SPLASH_FFT_kernel
+end module ISFFT_FFT_kernel

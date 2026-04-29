@@ -1,15 +1,15 @@
-module SPLASH_GlobalTranspose
-    use SPLASH_Parameters
-    use SPLASH_MPI_Constants
-    use SPLASH_Buffer
+module ISFFT_GlobalTranspose
+    use ISFFT_Parameters
+    use ISFFT_MPI_Constants
+    use ISFFT_Buffer
     implicit none
  
  contains
 
 !----------------------------------------------------------------------
  subroutine global_transpose_12(phi_re_in, phi_im_in, phi_re_out, phi_im_out)
-    real(kind=SPLASH_REAL_KIND), intent(in) :: phi_re_in(:,:,:), phi_im_in(:,:,:)
-    real(kind=SPLASH_REAL_KIND), intent(out) :: phi_re_out(:,:,:), phi_im_out(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(in) :: phi_re_in(:,:,:), phi_im_in(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(out) :: phi_re_out(:,:,:), phi_im_out(:,:,:)
 
     integer :: i, j, k, l, p, ierr, proc_id
     integer :: sendcounts(0:np_size-1), recvcounts(0:np_size-1)
@@ -76,8 +76,8 @@ module SPLASH_GlobalTranspose
     ! allocate(recvbuf_3DFFT(sum(recvcounts)))      !! If the size of buffer here is not nx*ny*nz, uncomment this line.
     ! allocate(recvbuf_im_3DFFT(sum(recvcounts)))
 
-    call MPI_Alltoallv(sendbuf_3DFFT_complex, sendcounts*2, sdispls*2, SPLASH_DATA_TYPE, &
-       recvbuf_3DFFT_complex, recvcounts*2, rdispls*2, SPLASH_DATA_TYPE, &
+    call MPI_Alltoallv(sendbuf_3DFFT_complex, sendcounts*2, sdispls*2, ISFFT_DATA_TYPE, &
+       recvbuf_3DFFT_complex, recvcounts*2, rdispls*2, ISFFT_DATA_TYPE, &
        MPI_COMM_WORLD, ierr)
 
     idx = 1
@@ -97,8 +97,8 @@ module SPLASH_GlobalTranspose
  end subroutine global_transpose_12
  !----------------------------------------------------------------------
  subroutine global_transpose_21(phi_re_in, phi_im_in, phi_re_out, phi_im_out)
-    real(kind=SPLASH_REAL_KIND), intent(in) :: phi_re_in(:,:,:), phi_im_in(:,:,:)
-    real(kind=SPLASH_REAL_KIND), intent(out) :: phi_re_out(:,:,:), phi_im_out(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(in) :: phi_re_in(:,:,:), phi_im_in(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(out) :: phi_re_out(:,:,:), phi_im_out(:,:,:)
 
     integer :: i, j, k, l, p, ierr, proc_id
     integer :: sendcounts(0:np_size-1), recvcounts(0:np_size-1)
@@ -166,8 +166,8 @@ module SPLASH_GlobalTranspose
     ! allocate(recvbuf_3DFFT(sum(recvcounts)))      !! If the size of buffer here is not nx*ny*nz, uncomment this line.
     ! allocate(recvbuf_im_3DFFT(sum(recvcounts)))
 
-    call MPI_Alltoallv(sendbuf_3DFFT_complex, sendcounts*2, sdispls*2, SPLASH_DATA_TYPE, &
-       recvbuf_3DFFT_complex, recvcounts*2, rdispls*2, SPLASH_DATA_TYPE, &
+    call MPI_Alltoallv(sendbuf_3DFFT_complex, sendcounts*2, sdispls*2, ISFFT_DATA_TYPE, &
+       recvbuf_3DFFT_complex, recvcounts*2, rdispls*2, ISFFT_DATA_TYPE, &
        MPI_COMM_WORLD, ierr)
 
     idx = 1
@@ -186,8 +186,8 @@ module SPLASH_GlobalTranspose
  end subroutine global_transpose_21
  !----------------------------------------------------------------------
  subroutine global_transpose_13(phi_re_in, phi_im_in, phi_re_out, phi_im_out)
-    real(kind=SPLASH_REAL_KIND), intent(in) :: phi_re_in(:,:,:), phi_im_in(:,:,:)
-    real(kind=SPLASH_REAL_KIND), intent(out) :: phi_re_out(:,:,:), phi_im_out(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(in) :: phi_re_in(:,:,:), phi_im_in(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(out) :: phi_re_out(:,:,:), phi_im_out(:,:,:)
 
     integer :: i, j, k, l, p, ierr, proc_id
     integer :: sendcounts(0:np_size-1), recvcounts(0:np_size-1)
@@ -250,8 +250,8 @@ module SPLASH_GlobalTranspose
        rdispls(p) = rdispls(p-1) + recvcounts(p-1)
     end do
 
-    call MPI_Alltoallv(sendbuf_3DFFT_complex, sendcounts*2, sdispls*2, SPLASH_DATA_TYPE, &
-       recvbuf_3DFFT_complex, recvcounts*2, rdispls*2, SPLASH_DATA_TYPE, &
+    call MPI_Alltoallv(sendbuf_3DFFT_complex, sendcounts*2, sdispls*2, ISFFT_DATA_TYPE, &
+       recvbuf_3DFFT_complex, recvcounts*2, rdispls*2, ISFFT_DATA_TYPE, &
        MPI_COMM_WORLD, ierr)
 
 
@@ -271,8 +271,8 @@ module SPLASH_GlobalTranspose
  end subroutine global_transpose_13
  !----------------------------------------------------------------------
  subroutine global_transpose_31(phi_re_in, phi_im_in, phi_re_out, phi_im_out)
-    real(kind=SPLASH_REAL_KIND), intent(in) :: phi_re_in(:,:,:), phi_im_in(:,:,:)
-    real(kind=SPLASH_REAL_KIND), intent(out) :: phi_re_out(:,:,:), phi_im_out(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(in) :: phi_re_in(:,:,:), phi_im_in(:,:,:)
+    real(kind=ISFFT_REAL_KIND), intent(out) :: phi_re_out(:,:,:), phi_im_out(:,:,:)
 
     integer :: i, j, k, l, p, ierr, proc_id
     integer :: sendcounts(0:np_size-1), recvcounts(0:np_size-1)
@@ -341,8 +341,8 @@ module SPLASH_GlobalTranspose
     ! allocate(recvbuf_3DFFT(sum(recvcounts)))      !! If the size of buffer here is not nx*ny*nz, uncomment this line.
     ! allocate(recvbuf_im_3DFFT(sum(recvcounts)))
 
-    call MPI_Alltoallv(sendbuf_3DFFT_complex, sendcounts*2, sdispls*2, SPLASH_DATA_TYPE, &
-       recvbuf_3DFFT_complex, recvcounts*2, rdispls*2, SPLASH_DATA_TYPE, &
+    call MPI_Alltoallv(sendbuf_3DFFT_complex, sendcounts*2, sdispls*2, ISFFT_DATA_TYPE, &
+       recvbuf_3DFFT_complex, recvcounts*2, rdispls*2, ISFFT_DATA_TYPE, &
        MPI_COMM_WORLD, ierr)
 
     idx = 1
@@ -362,4 +362,4 @@ module SPLASH_GlobalTranspose
  !----------------------------------------------------------------------
 
 
-end module SPLASH_GlobalTranspose
+end module ISFFT_GlobalTranspose

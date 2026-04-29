@@ -5,7 +5,7 @@ include'IO_Poisson_3D.f90'
 subroutine main_solver
    Use flow_parameters
    use TMS_constants
-   use SPLASH
+   use ISFFT
    implicit none
 
    real(kind=TMS_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP):: phi,f
@@ -30,7 +30,7 @@ subroutine main_solver
    
    Nt = 1 !! Manually set the number of loops. 
 
-   call SPLASH_Initialize(Global_Grid_Size, Process_Grid_Size, Computational_Domain_Size, &
+   call ISFFT_Initialize(Global_Grid_Size, Process_Grid_Size, Computational_Domain_Size, &
       LAP, If_3dfft_decomp, If_scheme, my_id)
 
    !!!---------------------------------------------------------------
@@ -40,13 +40,13 @@ subroutine main_solver
 
       ! In real CFD simulations, the source term f is updated at each time step.
       call Poisson_3D_source(f)
-      call SPLASH_Periodic_Poisson_solver(phi, f)
+      call ISFFT_Periodic_Poisson_solver(phi, f)
 
    end do
    !!!---------------------------------------------------------------
    !!!---------------------------------------------------------------
    !!!---------------------------------------------------------------
-   call SPLASH_Finalize()
+   call ISFFT_Finalize()
 
    call IO_Poisson_3D(phi)
    if (my_id .eq. 0) write(*,*) '3D Periodic Poisson Solve is done!!'

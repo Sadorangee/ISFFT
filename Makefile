@@ -1,5 +1,5 @@
-# SPLASH Fortran MPI Library Makefile
-# This Makefile builds the SPLASH static library only.
+# ISFFT Fortran MPI Library Makefile
+# This Makefile builds the ISFFT static library only.
 # It does NOT build examples by default.
 
 .NOTPARALLEL:
@@ -15,7 +15,7 @@ INCLUDE_DIR = include
 LIB_DIR = lib
 
 # Library name
-LIB_NAME = libsplash.a
+LIB_NAME = libisfft.a
 
 # Installation prefix (configurable by user)
 # Safe default: install inside current project directory
@@ -23,29 +23,29 @@ LIB_NAME = libsplash.a
 # make install PREFIX=/usr/local
 PREFIX ?= $(CURDIR)/install
 
-# SPLASH source files in exact dependency order (DO NOT reorder)
-SPLASH_SRCS = \
-  $(SRC_DIR)/SPLASH_Precision.f90 \
-  $(SRC_DIR)/SPLASH_Parameters.f90 \
-  $(SRC_DIR)/SPLASH_MPI_Constants.f90 \
-  $(SRC_DIR)/SPLASH_Buffer.f90 \
-  $(SRC_DIR)/SPLASH_FFT_Pre.f90 \
-  $(SRC_DIR)/SPLASH_LT_Tuning.f90 \
-  $(SRC_DIR)/SPLASH_MPI_Part.f90 \
-  $(SRC_DIR)/SPLASH_FFT_kernel.f90 \
-  $(SRC_DIR)/SPLASH_LocalTranspose.f90 \
-  $(SRC_DIR)/SPLASH_GlobalTranspose.f90 \
-  $(SRC_DIR)/SPLASH_Poisson_Algebra.f90 \
-  $(SRC_DIR)/SPLASH_3D_FFT.f90 \
-  $(SRC_DIR)/SPLASH_Repartitioning.f90 \
-  $(SRC_DIR)/SPLASH_Halos_Exchange.f90 \
-  $(SRC_DIR)/SPLASH_3D_Periodic_Poisson.f90 \
-  $(SRC_DIR)/SPLASH_Integrated_Solver.f90 \
-  $(SRC_DIR)/SPLASH_Planner.f90 \
-  $(SRC_DIR)/SPLASH.f90
+# ISFFT source files in exact dependency order (DO NOT reorder)
+ISFFT_SRCS = \
+  $(SRC_DIR)/ISFFT_Precision.f90 \
+  $(SRC_DIR)/ISFFT_Parameters.f90 \
+  $(SRC_DIR)/ISFFT_MPI_Constants.f90 \
+  $(SRC_DIR)/ISFFT_Buffer.f90 \
+  $(SRC_DIR)/ISFFT_FFT_Pre.f90 \
+  $(SRC_DIR)/ISFFT_LT_Tuning.f90 \
+  $(SRC_DIR)/ISFFT_MPI_Part.f90 \
+  $(SRC_DIR)/ISFFT_FFT_kernel.f90 \
+  $(SRC_DIR)/ISFFT_LocalTranspose.f90 \
+  $(SRC_DIR)/ISFFT_GlobalTranspose.f90 \
+  $(SRC_DIR)/ISFFT_Poisson_Algebra.f90 \
+  $(SRC_DIR)/ISFFT_3D_FFT.f90 \
+  $(SRC_DIR)/ISFFT_Repartitioning.f90 \
+  $(SRC_DIR)/ISFFT_Halos_Exchange.f90 \
+  $(SRC_DIR)/ISFFT_3D_Periodic_Poisson.f90 \
+  $(SRC_DIR)/ISFFT_Integrated_Solver.f90 \
+  $(SRC_DIR)/ISFFT_Planner.f90 \
+  $(SRC_DIR)/ISFFT.f90
 
 # Object files in build directory, preserving source order
-SPLASH_OBJS = $(patsubst $(SRC_DIR)/%.f90,$(BUILD_DIR)/%.o,$(SPLASH_SRCS))
+ISFFT_OBJS = $(patsubst $(SRC_DIR)/%.f90,$(BUILD_DIR)/%.o,$(ISFFT_SRCS))
 
 .PHONY: all install clean print-prefix
 
@@ -71,7 +71,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90 | $(BUILD_DIR) $(INCLUDE_DIR)
 	$(FC) $(FFLAGS) -I$(INCLUDE_DIR) -J$(INCLUDE_DIR) -c $< -o $@
 
 # Archive object files into static library
-$(LIB_DIR)/$(LIB_NAME): $(SPLASH_OBJS) | $(LIB_DIR)
+$(LIB_DIR)/$(LIB_NAME): $(ISFFT_OBJS) | $(LIB_DIR)
 	ar rcs $@ $^
 
 # Install library and module files to PREFIX

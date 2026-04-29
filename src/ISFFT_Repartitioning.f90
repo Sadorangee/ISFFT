@@ -1,9 +1,9 @@
-module SPLASH_Repartitioning
-   use SPLASH_Parameters
-   use SPLASH_MPI_Constants
+module ISFFT_Repartitioning
+   use ISFFT_Parameters
+   use ISFFT_MPI_Constants
    implicit none
 
-   public :: SPLASH_Repartitioning_Forward, SPLASH_Repartitioning_Inverse
+   public :: ISFFT_Repartitioning_Forward, ISFFT_Repartitioning_Inverse
 
    private
 
@@ -50,12 +50,12 @@ contains
 
    end subroutine need_repartitioning
    !----------------------------------------------------------------------
-   subroutine Initialize_SPLASH_Repartitioning()
+   subroutine Initialize_ISFFT_Repartitioning()
       integer :: k, ka, ierr
 
       if (If_repartitioning_initialized) then
          ! if (my_id == 0) then
-         !    write(*,*) "Warning: Repartitioning is already initialized. Call Reset_SPLASH_Repartitioning first."
+         !    write(*,*) "Warning: Repartitioning is already initialized. Call Reset_ISFFT_Repartitioning first."
          ! endif
          return
       endif
@@ -105,7 +105,7 @@ contains
       !    write(*,*) "----------------------------------------------------------------------"
       ! endif
 
-   end subroutine Initialize_SPLASH_Repartitioning
+   end subroutine Initialize_ISFFT_Repartitioning
    !----------------------------------------------------------------------
    subroutine Which_Target_Layout(npx0_target, npy0_target, npz0_target)
       integer, intent(out) :: npx0_target, npy0_target, npz0_target
@@ -152,9 +152,9 @@ contains
    end subroutine Which_Target_Layout
    !----------------------------------------------------------------------
    subroutine Repartitioning_Kernel(phi_inout, npx0_new, npy0_new, npz0_new)
-      use SPLASH_MPI_Part
+      use ISFFT_MPI_Part
 
-      real(kind=SPLASH_REAL_KIND), intent(inout), allocatable :: phi_inout(:,:,:)
+      real(kind=ISFFT_REAL_KIND), intent(inout), allocatable :: phi_inout(:,:,:)
       ! logical, intent(in) :: If_LAP
       integer, intent(in) :: npx0_new, npy0_new, npz0_new
 
@@ -175,7 +175,7 @@ contains
       integer              :: sendcounts(0:np_size-1), recvcounts(0:np_size-1)
       integer              :: sdispls(0:np_size-1), rdispls(0:np_size-1)
       integer              :: pos(0:np_size-1)
-      real(kind=SPLASH_REAL_KIND), allocatable :: sendbuf(:), recvbuf(:)
+      real(kind=ISFFT_REAL_KIND), allocatable :: sendbuf(:), recvbuf(:)
 
 
       is_to_target = (npx0_new == target_npx0 .and. npy0_new == target_npy0 .and. npz0_new == target_npz0)
@@ -238,20 +238,20 @@ contains
 
       end select
 
-      call SPLASH_Part_change(npx0_new, npy0_new, npz0_new)
+      call ISFFT_Part_change(npx0_new, npy0_new, npz0_new)
 
       sendcounts = 0
 
       do k = 1, old_nz
          k_global = old_k_offset(old_npz) + (k - 1)
-         call SPLASH_get_k_node(k_global, new_node_k, k_local_new)
+         call ISFFT_get_k_node(k_global, new_node_k, k_local_new)
          do j = 1, old_ny
             j_global = old_j_offset(old_npy) + (j - 1)
-            call SPLASH_get_j_node(j_global, new_node_j, j_local_new)
+            call ISFFT_get_j_node(j_global, new_node_j, j_local_new)
             do i = 1, old_nx
                i_global = old_i_offset(old_npx) + (i - 1)
-               call SPLASH_get_i_node(i_global, new_node_i, i_local_new)
-               target_id = SPLASH_get_id(new_node_i, new_node_j, new_node_k)
+               call ISFFT_get_i_node(i_global, new_node_i, i_local_new)
+               target_id = ISFFT_get_id(new_node_i, new_node_j, new_node_k)
                sendcounts(target_id) = sendcounts(target_id) + 1
             end do
          end do
@@ -266,21 +266,21 @@ contains
          rdispls(p) = rdispls(p-1) + recvcounts(p-1)
       end do
 
-      allocate(sendbuf(0:sum(sendcounts)-1), source=0.0_SPLASH_REAL_KIND)
-      allocate(recvbuf(0:sum(recvcounts)-1), source=0.0_SPLASH_REAL_KIND)
+      allocate(sendbuf(0:sum(sendcounts)-1), source=0.0_ISFFT_REAL_KIND)
+      allocate(recvbuf(0:sum(recvcounts)-1), source=0.0_ISFFT_REAL_KIND)
 
       pos(0:np_size-1) = sdispls(0:np_size-1)
 
       do k = 1, old_nz
          k_global = old_k_offset(old_npz) + (k - 1)
-         call SPLASH_get_k_node(k_global, new_node_k, k_local_new)
+         call ISFFT_get_k_node(k_global, new_node_k, k_local_new)
          do j = 1, old_ny
             j_global = old_j_offset(old_npy) + (j - 1)
-            call SPLASH_get_j_node(j_global, new_node_j, j_local_new)
+            call ISFFT_get_j_node(j_global, new_node_j, j_local_new)
             do i = 1, old_nx
                i_global = old_i_offset(old_npx) + (i - 1)
-               call SPLASH_get_i_node(i_global, new_node_i, i_local_new)
-               target_id = SPLASH_get_id(new_node_i, new_node_j, new_node_k)
+               call ISFFT_get_i_node(i_global, new_node_i, i_local_new)
+               target_id = ISFFT_get_id(new_node_i, new_node_j, new_node_k)
                sendbuf(pos(target_id)) = phi_inout(i, j, k)
                pos(target_id) = pos(target_id) + 1
             end do
@@ -292,7 +292,7 @@ contains
 
 
       if (allocated(phi_inout)) deallocate(phi_inout)
-      allocate(phi_inout(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP), source=0.0_SPLASH_REAL_KIND)
+      allocate(phi_inout(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP), source=0.0_ISFFT_REAL_KIND)
 
       do proc_id = 0, np_size-1
          if (recvcounts(proc_id) .eq. 0) cycle
@@ -329,13 +329,13 @@ contains
    end subroutine Repartitioning_Kernel
    !----------------------------------------------------------------------
    subroutine Repartitioning_Interface(phi_inout, to_target)
-      real(kind=SPLASH_REAL_KIND), allocatable, intent(inout) :: phi_inout(:,:,:)
+      real(kind=ISFFT_REAL_KIND), allocatable, intent(inout) :: phi_inout(:,:,:)
       ! logical, intent(in) :: If_LAP
       logical, intent(in) :: to_target
 
       if (.not. If_repartitioning_initialized) then
          if (my_id == 0) then
-            write(*,*) 'ERROR: Repartitioning is not initialized. Call Initialize_SPLASH_Repartitioning first.'
+            write(*,*) 'ERROR: Repartitioning is not initialized. Call Initialize_ISFFT_Repartitioning first.'
          endif
          return
       endif
@@ -351,28 +351,28 @@ contains
 
 
    !----------------------------------------------------------------------
-   subroutine SPLASH_Repartitioning_Forward(phi_inout)
-      real(kind=SPLASH_REAL_KIND), allocatable, intent(inout) :: phi_inout(:,:,:)
+   subroutine ISFFT_Repartitioning_Forward(phi_inout)
+      real(kind=ISFFT_REAL_KIND), allocatable, intent(inout) :: phi_inout(:,:,:)
 
       call need_repartitioning()
       if (.not.If_need_repartitioning) return
 
-      call Initialize_SPLASH_Repartitioning()
+      call Initialize_ISFFT_Repartitioning()
 
       call Repartitioning_Interface(phi_inout, .true.)
 
-   end subroutine SPLASH_Repartitioning_Forward
+   end subroutine ISFFT_Repartitioning_Forward
    !----------------------------------------------------------------------
-   subroutine SPLASH_Repartitioning_Inverse(phi_inout)
-      real(kind=SPLASH_REAL_KIND), allocatable, intent(inout) :: phi_inout(:,:,:)
+   subroutine ISFFT_Repartitioning_Inverse(phi_inout)
+      real(kind=ISFFT_REAL_KIND), allocatable, intent(inout) :: phi_inout(:,:,:)
 
       call need_repartitioning()
       if (.not.If_need_repartitioning) return
 
       call Repartitioning_Interface(phi_inout, .false.)
 
-   end subroutine SPLASH_Repartitioning_Inverse
+   end subroutine ISFFT_Repartitioning_Inverse
    !----------------------------------------------------------------------
 
 
-end module SPLASH_Repartitioning
+end module ISFFT_Repartitioning
