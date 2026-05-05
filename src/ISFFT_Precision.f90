@@ -1,6 +1,6 @@
 module ISFFT_Precision
+    use mpi
     implicit none
-    include "mpif.h"
 
     !------For Doubleprecision  (real*8)------------------------
     integer,parameter::ISFFT_REAL_KIND=8,  ISFFT_DATA_TYPE=MPI_DOUBLE_PRECISION   ! double precison computing
