@@ -1,7 +1,7 @@
 !!---------------------------------------------------------------------------------------------------------
 module TMS_precision
+   use mpi
    implicit none
-   include "mpif.h"
 !------For Doubleprecision  (real*8)------------------------------------------------------------------
    integer,parameter::TMS_REAL_KIND=8,  TMS_DATA_TYPE=MPI_DOUBLE_PRECISION   ! double precison computing
    integer,parameter::TMS_DATA_TYPE0=MPI_INTEGER
