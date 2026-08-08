@@ -29,17 +29,21 @@ ISFFT_SRCS = \
   $(SRC_DIR)/ISFFT_Parameters.f90 \
   $(SRC_DIR)/ISFFT_MPI_Constants.f90 \
   $(SRC_DIR)/ISFFT_Buffer.f90 \
+  $(SRC_DIR)/ISFFT_Discrete_Symbols.f90 \
   $(SRC_DIR)/ISFFT_FFT_Pre.f90 \
   $(SRC_DIR)/ISFFT_LT_Tuning.f90 \
   $(SRC_DIR)/ISFFT_MPI_Part.f90 \
   $(SRC_DIR)/ISFFT_FFT_kernel.f90 \
+  $(SRC_DIR)/ISFFT_DST_kernel.f90 \
+  $(SRC_DIR)/ISFFT_DCT_kernel.f90 \
   $(SRC_DIR)/ISFFT_LocalTranspose.f90 \
   $(SRC_DIR)/ISFFT_GlobalTranspose.f90 \
-  $(SRC_DIR)/ISFFT_Poisson_Algebra.f90 \
-  $(SRC_DIR)/ISFFT_3D_FFT.f90 \
   $(SRC_DIR)/ISFFT_Repartitioning.f90 \
+  $(SRC_DIR)/ISFFT_Transforms.f90 \
   $(SRC_DIR)/ISFFT_Halos_Exchange.f90 \
-  $(SRC_DIR)/ISFFT_3D_Periodic_Poisson.f90 \
+  $(SRC_DIR)/ISFFT_1D_Mixed_Poisson.f90 \
+  $(SRC_DIR)/ISFFT_2D_Mixed_Poisson.f90 \
+  $(SRC_DIR)/ISFFT_3D_Mixed_Poisson.f90 \
   $(SRC_DIR)/ISFFT_Integrated_Solver.f90 \
   $(SRC_DIR)/ISFFT_Planner.f90 \
   $(SRC_DIR)/ISFFT.f90

@@ -5,24 +5,31 @@ module ISFFT_Halos_Exchange
    implicit none
    
    private
-   public :: ISFFT_Update_Periodic_Boundary_xyz
+   public :: ISFFT_Update_Boundary_x, ISFFT_Update_Boundary_xy, ISFFT_Update_Boundary_xyz
 
 contains
 
 !----------------------------------------------------------------------
-subroutine ISFFT_Update_Periodic_Boundary_xyz(f)
+subroutine ISFFT_Update_Boundary_xyz(f)
    implicit none
    real(kind=ISFFT_REAL_KIND):: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
-   call ISFFT_Update_Periodic_Boundary_x(f)
-   call ISFFT_Update_Periodic_Boundary_y(f)
-   call ISFFT_Update_Periodic_Boundary_z(f)
+   call ISFFT_Update_Boundary_x(f,BC(1))
+   call ISFFT_Update_Boundary_y(f,BC(2))
+   call ISFFT_Update_Boundary_z(f,BC(3))
    return
-end subroutine ISFFT_Update_Periodic_Boundary_xyz
+end subroutine ISFFT_Update_Boundary_xyz
+!----------------------------------------------------------------------
+subroutine ISFFT_Update_Boundary_xy(f)
+   implicit none
+   real(kind=ISFFT_REAL_KIND):: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   call ISFFT_Update_Boundary_x(f,BC(1))
+   call ISFFT_Update_Boundary_y(f,BC(2))
+end subroutine ISFFT_Update_Boundary_xy
  !----------------------------------------------------------------------
-subroutine ISFFT_Update_Periodic_Boundary_x(f)
+subroutine ISFFT_Update_Boundary_x(f,BC1)
    use ISFFT_MPI_Part, only: ISFFT_get_id, ISFFT_mod
    implicit none
-   integer :: Iperiodic1 = 1
+   integer, intent(in) :: BC1
    real(kind=ISFFT_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
 
    integer :: ierr, Status(MPI_STATUS_SIZE)
@@ -39,7 +46,7 @@ subroutine ISFFT_Update_Periodic_Boundary_x(f)
 
    if (LAP <= 0) return
 
-   if (Iperiodic1 == 1) then
+   if (BC1 == 0) then
       max_hops_left  = npx0 - 1
       max_hops_right = npx0 - 1
    else
@@ -47,7 +54,7 @@ subroutine ISFFT_Update_Periodic_Boundary_x(f)
       max_hops_right = (npx0-1)-npx
    end if
 
-   if (Iperiodic1 == 1 .and. npx0 == 1) then
+   if (BC1 == 0 .and. npx0 == 1) then
       do k = 1, nz
          do j = 1, ny
             f(1-LAP:0, j, k) = f(nx-LAP+1:nx, j, k)
@@ -55,9 +62,10 @@ subroutine ISFFT_Update_Periodic_Boundary_x(f)
          end do
       end do
       return
+   else if (BC1 /= 0 .and. npx0 == 1) then
+      call Fill_Physical_X_Halos(f, BC1)
+      return
    end if
-
-   ! if (Iperiodic1 /= 1 .and. npx0 == 1) needs special treatment
 
    allocate(send_right_buf(LAP*ny*nz), recv_left_buf(LAP*ny*nz))
    allocate(send_left_buf (LAP*ny*nz), recv_right_buf(LAP*ny*nz))
@@ -72,7 +80,7 @@ subroutine ISFFT_Update_Periodic_Boundary_x(f)
 
       if (hop <= max_hops_left) then
          rL = ISFFT_mod(npx - hop, npx0)
-         if (Iperiodic1 == 1 .or. npx - hop >= 0) then
+         if (BC1 == 0 .or. npx - hop >= 0) then
             proc_left = ISFFT_get_id(rL, npy, npz)
          else
             proc_left = MPI_PROC_NULL
@@ -83,7 +91,7 @@ subroutine ISFFT_Update_Periodic_Boundary_x(f)
 
       if (hop <= max_hops_right) then
          rR = ISFFT_mod(npx + hop, npx0)
-         if (Iperiodic1 == 1 .or. npx + hop <= npx0-1) then
+         if (BC1 == 0 .or. npx + hop <= npx0-1) then
             proc_right = ISFFT_get_id(rR, npy, npz)
          else
             proc_right = MPI_PROC_NULL
@@ -201,14 +209,15 @@ subroutine ISFFT_Update_Periodic_Boundary_x(f)
    end do
 
    if (ISFFT_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (BC1 /= 0) call Fill_Physical_X_Halos(f, BC1)
 
    deallocate(send_right_buf, recv_left_buf, send_left_buf, recv_right_buf)
-end subroutine ISFFT_Update_Periodic_Boundary_x
+end subroutine ISFFT_Update_Boundary_x
  !----------------------------------------------------------------------
-subroutine ISFFT_Update_Periodic_Boundary_y(f)
+subroutine ISFFT_Update_Boundary_y(f,BC2)
    use ISFFT_MPI_Part, only: ISFFT_get_id, ISFFT_mod
    implicit none
-   integer :: Iperiodic2 = 1
+   integer, intent(in) :: BC2
    real(kind=ISFFT_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
 
    integer :: ierr, Status(MPI_STATUS_SIZE)
@@ -225,7 +234,7 @@ subroutine ISFFT_Update_Periodic_Boundary_y(f)
 
    if (LAP <= 0) return
 
-   if (Iperiodic2 == 1) then
+   if (BC2 == 0) then
       max_hops_dn = npy0 - 1
       max_hops_up = npy0 - 1
    else
@@ -233,7 +242,7 @@ subroutine ISFFT_Update_Periodic_Boundary_y(f)
       max_hops_up = (npy0-1) - npy
    end if
 
-   if (Iperiodic2 == 1 .and. npy0 == 1) then
+   if (BC2 == 0 .and. npy0 == 1) then
       do k = 1, nz
          do i = 1, nx
             f(i, 1-LAP:0, k) = f(i, ny-LAP+1:ny, k)
@@ -241,9 +250,10 @@ subroutine ISFFT_Update_Periodic_Boundary_y(f)
          end do
       end do
       return
+   else if (BC2 /= 0 .and. npy0 == 1) then
+      call Fill_Physical_Y_Halos(f, BC2)
+      return
    end if
-
-   ! if (Iperiodic2 /= 1 .and. npy0 == 1) needs special treatment
 
    allocate(send_up_buf(LAP*nx*nz), recv_dn_buf(LAP*nx*nz))
    allocate(send_dn_buf(LAP*nx*nz), recv_up_buf(LAP*nx*nz))
@@ -257,7 +267,7 @@ subroutine ISFFT_Update_Periodic_Boundary_y(f)
 
       if (hop <= max_hops_dn) then
          rD = ISFFT_mod(npy - hop, npy0)
-         if (Iperiodic2 == 1 .or. npy - hop >= 0) then
+         if (BC2 == 0 .or. npy - hop >= 0) then
             proc_dn = ISFFT_get_id(npx, rD, npz)
          else
             proc_dn = MPI_PROC_NULL
@@ -268,7 +278,7 @@ subroutine ISFFT_Update_Periodic_Boundary_y(f)
 
       if (hop <= max_hops_up) then
          rU = ISFFT_mod(npy + hop, npy0)
-         if (Iperiodic2 == 1 .or. npy + hop <= npy0-1) then
+         if (BC2 == 0 .or. npy + hop <= npy0-1) then
             proc_up = ISFFT_get_id(npx, rU, npz)
          else
             proc_up = MPI_PROC_NULL
@@ -371,14 +381,15 @@ subroutine ISFFT_Update_Periodic_Boundary_y(f)
    end do
 
    if (ISFFT_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (BC2 /= 0) call Fill_Physical_Y_Halos(f, BC2)
 
    deallocate(send_up_buf, recv_dn_buf, send_dn_buf, recv_up_buf)
-end subroutine ISFFT_Update_Periodic_Boundary_y
+end subroutine ISFFT_Update_Boundary_y
  !----------------------------------------------------------------------
-subroutine ISFFT_Update_Periodic_Boundary_z(f)
+subroutine ISFFT_Update_Boundary_z(f,BC3)
    use ISFFT_MPI_Part, only: ISFFT_get_id, ISFFT_mod
    implicit none
-   integer :: Iperiodic3 = 1
+   integer, intent(in) :: BC3
    real(kind=ISFFT_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
 
    integer :: ierr, Status(MPI_STATUS_SIZE)
@@ -395,7 +406,7 @@ subroutine ISFFT_Update_Periodic_Boundary_z(f)
 
    if (LAP <= 0) return
 
-   if (Iperiodic3 == 1) then
+   if (BC3 == 0) then
       max_hops_bk = npz0 - 1
       max_hops_fr = npz0 - 1
    else
@@ -403,7 +414,7 @@ subroutine ISFFT_Update_Periodic_Boundary_z(f)
       max_hops_fr = (npz0-1) - npz
    end if
 
-   if (Iperiodic3 == 1 .and. npz0 == 1) then
+   if (BC3 == 0 .and. npz0 == 1) then
       do j = 1, ny
          do i = 1, nx
             f(i, j, 1-LAP:0) = f(i, j, nz-LAP+1:nz)
@@ -411,9 +422,10 @@ subroutine ISFFT_Update_Periodic_Boundary_z(f)
          end do
       end do
       return
+   else if (BC3 /= 0 .and. npz0 == 1) then
+      call Fill_Physical_Z_Halos(f, BC3)
+      return
    end if
-
-   ! if (Iperiodic3 /= 1 .and. npz0 == 1) needs special treatment
 
    allocate(send_fr_buf(LAP*nx*ny), recv_bk_buf(LAP*nx*ny))
    allocate(send_bk_buf(LAP*nx*ny), recv_fr_buf(LAP*nx*ny))
@@ -427,7 +439,7 @@ subroutine ISFFT_Update_Periodic_Boundary_z(f)
 
       if (hop <= max_hops_bk) then
          rB = ISFFT_mod(npz - hop, npz0)
-         if (Iperiodic3 == 1 .or. npz - hop >= 0) then
+         if (BC3 == 0 .or. npz - hop >= 0) then
             proc_bk = ISFFT_get_id(npx, npy, rB)
          else
             proc_bk = MPI_PROC_NULL
@@ -438,7 +450,7 @@ subroutine ISFFT_Update_Periodic_Boundary_z(f)
 
       if (hop <= max_hops_fr) then
          rF = ISFFT_mod(npz + hop, npz0)
-         if (Iperiodic3 == 1 .or. npz + hop <= npz0-1) then
+         if (BC3 == 0 .or. npz + hop <= npz0-1) then
             proc_fr = ISFFT_get_id(npx, npy, rF)
          else
             proc_fr = MPI_PROC_NULL
@@ -541,10 +553,56 @@ subroutine ISFFT_Update_Periodic_Boundary_z(f)
    end do
 
    if (ISFFT_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (BC3 /= 0) call Fill_Physical_Z_Halos(f, BC3)
 
    deallocate(send_fr_buf, recv_bk_buf, send_bk_buf, recv_fr_buf)
-end subroutine ISFFT_Update_Periodic_Boundary_z
+end subroutine ISFFT_Update_Boundary_z
  !----------------------------------------------------------------------
+
+subroutine Fill_Physical_X_Halos(f, boundary_type)
+   integer, intent(in) :: boundary_type
+   real(kind=ISFFT_REAL_KIND), intent(inout) :: &
+      f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   integer :: s
+   real(kind=ISFFT_REAL_KIND) :: reflection_sign
+
+   reflection_sign = 1.0_ISFFT_REAL_KIND
+   if (boundary_type == 1) reflection_sign = -1.0_ISFFT_REAL_KIND
+   do s = 1, LAP
+      if (npx == 0) f(1-s,1:ny,1:nz) = reflection_sign*f(1+s,1:ny,1:nz)
+      if (npx == npx0-1) f(nx+s,1:ny,1:nz) = reflection_sign*f(nx-s,1:ny,1:nz)
+   end do
+end subroutine Fill_Physical_X_Halos
+
+subroutine Fill_Physical_Y_Halos(f, boundary_type)
+   integer, intent(in) :: boundary_type
+   real(kind=ISFFT_REAL_KIND), intent(inout) :: &
+      f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   integer :: s
+   real(kind=ISFFT_REAL_KIND) :: reflection_sign
+
+   reflection_sign = 1.0_ISFFT_REAL_KIND
+   if (boundary_type == 1) reflection_sign = -1.0_ISFFT_REAL_KIND
+   do s = 1, LAP
+      if (npy == 0) f(1:nx,1-s,1:nz) = reflection_sign*f(1:nx,1+s,1:nz)
+      if (npy == npy0-1) f(1:nx,ny+s,1:nz) = reflection_sign*f(1:nx,ny-s,1:nz)
+   end do
+end subroutine Fill_Physical_Y_Halos
+
+subroutine Fill_Physical_Z_Halos(f, boundary_type)
+   integer, intent(in) :: boundary_type
+   real(kind=ISFFT_REAL_KIND), intent(inout) :: &
+      f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   integer :: s
+   real(kind=ISFFT_REAL_KIND) :: reflection_sign
+
+   reflection_sign = 1.0_ISFFT_REAL_KIND
+   if (boundary_type == 1) reflection_sign = -1.0_ISFFT_REAL_KIND
+   do s = 1, LAP
+      if (npz == 0) f(1:nx,1:ny,1-s) = reflection_sign*f(1:nx,1:ny,1+s)
+      if (npz == npz0-1) f(1:nx,1:ny,nz+s) = reflection_sign*f(1:nx,1:ny,nz-s)
+   end do
+end subroutine Fill_Physical_Z_Halos
 
 end module ISFFT_Halos_Exchange
  !----------------------------------------------------------------------

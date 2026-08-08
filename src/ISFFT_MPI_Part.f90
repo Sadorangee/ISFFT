@@ -129,18 +129,22 @@ contains
       npx2=ISFFT_mod(npx+1,npx0)
       ID_XM1=npz*(npx0*npy0)+npy*npx0+npx1    ! -1 proc in x-direction
       ID_XP1=npz*(npx0*npy0)+npy*npx0+npx2    ! +1 proc in x-direction
-
+      if(BC(1) .ne.0 .and. npx .eq. 0) ID_XM1=MPI_PROC_NULL
+      if(BC(1) .ne.0 .and. npx .eq. npx0-1) ID_XP1=MPI_PROC_NULL
 
       npy1=ISFFT_mod(npy-1,npy0)
       npy2=ISFFT_mod(npy+1,npy0)
       ID_YM1=npz*(npx0*npy0)+npy1*npx0+npx
       ID_YP1=npz*(npx0*npy0)+npy2*npx0+npx
-
+      if(BC(2) .ne.0 .and. npy .eq. 0) ID_YM1=MPI_PROC_NULL
+      if(BC(2) .ne.0 .and. npy .eq. npy0-1) ID_YP1=MPI_PROC_NULL
 
       npz1=ISFFT_mod(npz-1,npz0)
       npz2=ISFFT_mod(npz+1,npz0)
       ID_ZM1=npz1*(npx0*npy0)+npy*npx0+npx
       ID_ZP1=npz2*(npx0*npy0)+npy*npx0+npx
+      if(BC(3) .ne.0 .and. npz .eq. 0) ID_ZM1=MPI_PROC_NULL
+      if(BC(3) .ne.0 .and. npz .eq. npz0-1) ID_ZP1=MPI_PROC_NULL
 
       call MPI_barrier(MPI_COMM_WORLD,ierr)
 

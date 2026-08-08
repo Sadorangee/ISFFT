@@ -1,0 +1,20 @@
+========================================================================
+======================== ISFFT Poisson Solver ==========================
+========================================================================
+# nx_global, ny_global, nz_global, Dimension, Boundary(0:2)
+    128         128        128         3         0  0  0
+#  npx0, npy0, npz0, LAP
+    2     2     2     0
+#  SLx,    SLy,     SLz
+   4.0     4.0      4.0
+#  CFL,     T
+   0.5     1e-5
+#  If_decomp (Block:0, Slab:1, Pencil:2)
+           2
+#  If_scheme (0:6)
+           0
+#  If_Periodic_test(0:1), If_Dirichlet_test (0:7), If_Neumann_test(0:2)
+           0                     0                        0
+========================================================================
+Boundary (0: Periodic, 1: Dirichlet, 2: Neumann)
+˙

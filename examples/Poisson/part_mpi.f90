@@ -47,16 +47,22 @@ subroutine part
    npx2=my_mod1(npx+1,npx0)
    ID_XM1=npz*(npx0*npy0)+npy*npx0+npx1    ! -1 proc in x-direction
    ID_XP1=npz*(npx0*npy0)+npy*npx0+npx2    ! +1 proc in x-direction
+   if(Boundary(1) .eq.0 .and. npx .eq. 0) ID_XM1=MPI_PROC_NULL     ! if not periodic, 0 node donot send mesg to npx0-1 node
+   if(Boundary(1) .eq.0 .and. npx .eq. npx0-1) ID_XP1=MPI_PROC_NULL
 
    npy1=my_mod1(npy-1,npy0)
    npy2=my_mod1(npy+1,npy0)
    ID_YM1=npz*(npx0*npy0)+npy1*npx0+npx
    ID_YP1=npz*(npx0*npy0)+npy2*npx0+npx
+   if(Boundary(2) .eq.0 .and. npy .eq. 0) ID_YM1=MPI_PROC_NULL
+   if(Boundary(2) .eq.0 .and. npy .eq. npy0-1) ID_YP1=MPI_PROC_NULL
 
    npz1=my_mod1(npz-1,npz0)
    npz2=my_mod1(npz+1,npz0)
    ID_ZM1=npz1*(npx0*npy0)+npy*npx0+npx
    ID_ZP1=npz2*(npx0*npy0)+npy*npx0+npx
+   if(Boundary(3) .eq.0 .and. npz .eq. 0) ID_ZM1=MPI_PROC_NULL
+   if(Boundary(3) .eq.0 .and. npz .eq. npz0-1) ID_ZP1=MPI_PROC_NULL
 
 
    call MPI_barrier(MPI_COMM_WORLD,ierr)
@@ -90,16 +96,16 @@ subroutine exchange_boundary_xyz(f)
    Use flow_parameters
    implicit none
    real(kind=TMS_REAL_KIND):: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
-   call exchange_boundary_x_standard(f, 1)
-   call exchange_boundary_y_standard(f, 1)
-   call exchange_boundary_z_standard(f, 1)
+   call exchange_boundary_x_standard(f, Boundary(1))
+   call exchange_boundary_y_standard(f, Boundary(2))
+   call exchange_boundary_z_standard(f, Boundary(3))
    return
 end subroutine exchange_boundary_xyz
 !----------------------------------------------------------------------
-subroutine exchange_boundary_x_standard(f, Iperiodic1)
+subroutine exchange_boundary_x_standard(f, BC1)
    use flow_parameters
    implicit none
-   integer, intent(in) :: Iperiodic1
+   integer, intent(in) :: BC1
    real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
  
    integer :: ierr, Status(MPI_STATUS_SIZE)
@@ -117,12 +123,24 @@ subroutine exchange_boundary_x_standard(f, Iperiodic1)
  
    if (LAP <= 0) return
  
-   if (Iperiodic1 == 1) then
+   if (BC1 == 1) then
       max_hops_left  = npx0 - 1
       max_hops_right = npx0 - 1
    else
       max_hops_left  = npx         
       max_hops_right = (npx0-1)-npx
+   end if
+
+   if (BC1 == 1 .and. npx0 == 1) then
+      do k = 1, nz
+         do j = 1, ny
+            f(1-LAP:0, j, k) = f(nx-LAP+1:nx, j, k)
+            f(nx+1:nx+LAP, j, k) = f(1:LAP, j, k)
+         end do
+      end do
+      return
+   else if (BC1 /= 1 .and. npx0 == 1) then
+      return
    end if
  
    allocate(send_right_buf(LAP*ny*nz), recv_left_buf(LAP*ny*nz))
@@ -138,7 +156,7 @@ subroutine exchange_boundary_x_standard(f, Iperiodic1)
    
       if (hop <= max_hops_left) then
          rL = my_mod1(npx - hop, npx0)
-         if (Iperiodic1 == 1 .or. npx - hop >= 0) then
+         if (BC1 == 1 .or. npx - hop >= 0) then
             proc_left = get_id(rL, npy, npz)
          else
             proc_left = MPI_PROC_NULL
@@ -149,7 +167,7 @@ subroutine exchange_boundary_x_standard(f, Iperiodic1)
  
       if (hop <= max_hops_right) then
          rR = my_mod1(npx + hop, npx0)
-         if (Iperiodic1 == 1 .or. npx + hop <= npx0-1) then
+         if (BC1 == 1 .or. npx + hop <= npx0-1) then
             proc_right = get_id(rR, npy, npz)
          else
            proc_right = MPI_PROC_NULL
@@ -271,10 +289,10 @@ subroutine exchange_boundary_x_standard(f, Iperiodic1)
    deallocate(send_right_buf, recv_left_buf, send_left_buf, recv_right_buf)
 end subroutine exchange_boundary_x_standard
 !----------------------------------------------------------------------
-subroutine exchange_boundary_y_standard(f, Iperiodic2)
+subroutine exchange_boundary_y_standard(f, BC2)
    use flow_parameters
    implicit none
-   integer, intent(in) :: Iperiodic2
+   integer, intent(in) :: BC2
    real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
  
    integer :: ierr, Status(MPI_STATUS_SIZE)
@@ -292,12 +310,24 @@ subroutine exchange_boundary_y_standard(f, Iperiodic2)
  
    if (LAP <= 0) return
  
-   if (Iperiodic2 == 1) then
+   if (BC2 == 1) then
       max_hops_dn = npy0 - 1
       max_hops_up = npy0 - 1
    else
       max_hops_dn = npy
       max_hops_up = (npy0-1) - npy
+   end if
+
+   if (BC2 == 1 .and. npy0 == 1) then
+      do k = 1, nz
+         do i = 1, nx
+            f(i, 1-LAP:0, k) = f(i, ny-LAP+1:ny, k)
+            f(i, ny+1:ny+LAP, k) = f(i, 1:LAP, k)
+         end do
+      end do
+      return
+   else if (BC2 /= 1 .and. npy0 == 1) then
+      return
    end if
  
    allocate(send_up_buf(LAP*nx*nz), recv_dn_buf(LAP*nx*nz))
@@ -312,7 +342,7 @@ subroutine exchange_boundary_y_standard(f, Iperiodic2)
  
       if (hop <= max_hops_dn) then
          rD = my_mod1(npy - hop, npy0)
-         if (Iperiodic2 == 1 .or. npy - hop >= 0) then
+         if (BC2 == 1 .or. npy - hop >= 0) then
             proc_dn = get_id(npx, rD, npz)
          else
             proc_dn = MPI_PROC_NULL
@@ -323,7 +353,7 @@ subroutine exchange_boundary_y_standard(f, Iperiodic2)
  
       if (hop <= max_hops_up) then
          rU = my_mod1(npy + hop, npy0)
-         if (Iperiodic2 == 1 .or. npy + hop <= npy0-1) then
+         if (BC2 == 1 .or. npy + hop <= npy0-1) then
             proc_up = get_id(npx, rU, npz)
          else
             proc_up = MPI_PROC_NULL
@@ -430,10 +460,10 @@ subroutine exchange_boundary_y_standard(f, Iperiodic2)
    deallocate(send_up_buf, recv_dn_buf, send_dn_buf, recv_up_buf)
 end subroutine exchange_boundary_y_standard
 !----------------------------------------------------------------------
-subroutine exchange_boundary_z_standard(f, Iperiodic3)
+subroutine exchange_boundary_z_standard(f, BC3)
    use flow_parameters
    implicit none
-   integer, intent(in) :: Iperiodic3
+   integer, intent(in) :: BC3
    real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
  
    integer :: ierr, Status(MPI_STATUS_SIZE)
@@ -451,12 +481,24 @@ subroutine exchange_boundary_z_standard(f, Iperiodic3)
  
    if (LAP <= 0) return
  
-   if (Iperiodic3 == 1) then
+   if (BC3 == 1) then
       max_hops_bk = npz0 - 1
       max_hops_fr = npz0 - 1
    else
       max_hops_bk = npz
       max_hops_fr = (npz0-1) - npz
+   end if
+
+   if (BC3 == 1 .and. npz0 == 1) then
+      do j = 1, ny
+         do i = 1, nx
+            f(i, j, 1-LAP:0) = f(i, j, nz-LAP+1:nz)
+            f(i, j, nz+1:nz+LAP) = f(i, j, 1:LAP)
+         end do
+      end do
+      return
+   else if (BC3 /= 1 .and. npz0 == 1) then
+      return
    end if
  
    allocate(send_fr_buf(LAP*nx*ny), recv_bk_buf(LAP*nx*ny))
@@ -471,7 +513,7 @@ subroutine exchange_boundary_z_standard(f, Iperiodic3)
  
       if (hop <= max_hops_bk) then
          rB = my_mod1(npz - hop, npz0)
-         if (Iperiodic3 == 1 .or. npz - hop >= 0) then
+         if (BC3 == 1 .or. npz - hop >= 0) then
             proc_bk = get_id(npx, npy, rB)
          else
             proc_bk = MPI_PROC_NULL
@@ -482,7 +524,7 @@ subroutine exchange_boundary_z_standard(f, Iperiodic3)
  
       if (hop <= max_hops_fr) then
          rF = my_mod1(npz + hop, npz0)
-         if (Iperiodic3 == 1 .or. npz + hop <= npz0-1) then
+         if (BC3 == 1 .or. npz + hop <= npz0-1) then
             proc_fr = get_id(npx, npy, rF)
          else
             proc_fr = MPI_PROC_NULL
@@ -588,6 +630,8 @@ subroutine exchange_boundary_z_standard(f, Iperiodic3)
  
    deallocate(send_fr_buf, recv_bk_buf, send_bk_buf, recv_fr_buf)
 end subroutine exchange_boundary_z_standard
+!----------------------------------------------------------------------
+
 
 
 !----------------------------------------------------------------------

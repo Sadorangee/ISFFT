@@ -8,7 +8,7 @@ FC = mpif90
 FFLAGS = -O3 -g
 
 # Executable name
-EXE = 3DPeriodicPoisson.out
+EXE = Poisson.out
 
 # ----------------------------------------------------------------------
 # ISFFT library configuration
