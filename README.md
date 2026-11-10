@@ -1,378 +1,346 @@
 # ISFFT
 
-ISFFT is a self-contained Fortran MPI library for FFT-based fast Poisson solvers in computational fluid dynamics (CFD) and high-performance computing (HPC) applications.
+ISFFT is a self-contained, MPI-parallel FFT library with an integrated Poisson
+solver for one-, two- and three-dimensional problems. It provides its own FFT,
+DST and DCT kernels and uses MPI for parallel communication.
 
 ## Features
 
-- MPI-parallel Poisson solvers for one-, two-, and three-dimensional problems.
-- Periodic, homogeneous Dirichlet, homogeneous Neumann, and mixed boundary conditions.
-- Pseudo-spectral and finite-difference formulations.
-- Block, slab, and pencil decompositions, with reversible repartitioning between CFD and transform layouts.
-- Interfaces that accept arrays with or without ghost cells.
-- Public real-to-complex and complex-to-complex FFT interfaces.
-- No dependency on an external FFT library.
+- Standalone real-to-complex and complex-to-complex FFT interfaces, with in-place
+  and out-of-place variants.
+- Poisson solvers with periodic, homogeneous Dirichlet, homogeneous Neumann and
+  mixed boundary conditions.
+- Spectral, explicit central-difference and compact central-difference schemes.
+- Block, slab and pencil decompositions, with round-trip redistribution between
+  the original decomposition and the internal transform decomposition.
+- Arrays with or without halo cells.
+- Estimate and Measure planning, with reusable execution workspaces.
 
-## Directory Structure
+## Project layout
 
 ```text
-ISFFT/
-├── examples/
-│   └── Poisson/
-│       ├── Poisson_solver_UI.in  # Example runtime configuration
-│       ├── Poisson_source.f90    # Manufactured source terms
-│       └── Post.m                # Unified smooth-case post-processing
-├── src/                      # ISFFT library source files
-├── Makefile                  # Library build and installation rules
-└── LICENSE                   # MIT License
+ISFFT_Github/
+├── src/               ISFFT library sources
+├── example/           CFD toy solver, input, MATLAB script and Makefile
+├── Makefile           Library build and installation
+├── CMakeLists.txt     CMake build and installation
+├── README.md
+└── LICENSE
 ```
 
-## Prerequisites
+Running `make` in the project root creates
 
-Before building ISFFT, make sure the following software is available:
+```text
+build/                 Library object files (.o)
+include/               Fortran module files (.mod)
+lib/libisfft.a         Static library
+```
 
-- A modern Fortran compiler, such as `gfortran` or `ifort`.
-- An MPI implementation, such as OpenMPI or MPICH.
-- An MPI Fortran compiler wrapper, such as `mpif90`.
-- GNU Make.
-- MATLAB or GNU Octave is optional and is used only for example post-processing.
+The library has 22 source files. The main groups are
 
-The commands below assume that `mpif90`, `mpirun`, and `make` are available in `PATH`.
+- Basic state and storage in `Communicator`, `Precision`, `Problem_State`,
+  `Discrete_Operators`, `Workspace` and `Plans`.
+- MPI partitioning, halo exchange, transform kernels and modal operations.
+- Communication, single-axis execution and complete transform execution.
+- Allocation, precomputation and planning, coordinated by `Initialization`.
+- Public redistribution and integrated Poisson interfaces, exported through
+  the `ISFFT` module.
 
-## Building the Library
+## Requirements and tested environments
 
-From the ISFFT root directory, run:
+Building requires a Fortran compiler, an MPI implementation with the `mpi`
+Fortran module, `ar` and either GNU Make or CMake 3.16 or newer with a supported
+build tool. The commands below use `mpif90` and `mpirun` from the same MPI
+installation. MATLAB is optional for post-processing.
 
-```bash
+The Make build, static linking and installation workflow was checked on
+macOS 26.6.2 (Apple Silicon) with GNU Fortran 15.2.0, Open MPI 5.0.9 and GNU Make
+3.81, using `-O3`.
+The CMake workflow was checked in the same environment with CMake 4.4.2,
+the Unix Makefiles generator and Release mode.
+
+The synchronized CPC library sources were also tested on Red Hat Enterprise
+Linux 7.7 (x86_64) with GNU Fortran 4.8.5 and Intel MPI 2021.14, using `-O3`.
+
+## Build and run with Make
+
+From the project root
+
+```sh
 make
+cd example
+make
+mpirun -n 4 ./Poisson.out
 ```
 
-This command:
+The root Makefile builds the library. The example Makefile compiles `menu.f90`,
+which includes the other toy-solver sources, and links it with `libisfft.a`.
+Build the library first and rerun the example's `make` after rebuilding it.
 
-- compiles sources from `src/` into `build/`;
-- writes Fortran module files to `include/`; and
-- creates the static library `lib/libisfft.a`.
+The supplied input uses a 128 by 128 by 128 periodic grid and a 2 by 2 by 1
+process grid, so it runs with four MPI processes. The process count must equal
+`npx0*npy0*npz0` in `example/Poisson_solver_UI.in`.
 
-The files listed in `ISFFT_SRCS` in the root `Makefile` are in Fortran module-dependency order. Keep this order when compiling the sources manually.
+The executable reads the input from its current working directory and writes
+`Poisson_1D_IO.dat`, `Poisson_2D_IO.dat` or `Poisson_3D_IO.dat`.
 
-To select another compiler or add compiler flags, override the Make variables on the command line, for example:
+Compiler settings can be supplied on the command line
 
-```bash
-make FC=mpif90 FFLAGS="-O3 -g"
+```sh
+make clean
+make FC=mpif90 FFLAGS="-O3"
+make -C example clean
+make -C example FC=mpif90 FFLAGS="-O3"
 ```
 
-## Installation
+Clean and rebuild both parts when changing the compiler, MPI installation or
+compiler flags. Fortran `.mod` files must match the compiler used by the caller.
+The default active compiler flag is `-O3`.
 
-### System-Style Install
+## Build and run with CMake
 
-Install to a standard system location (requires root/admin privileges):
+From the project root, build the static library with
 
-```bash
+```sh
+cmake -S . -B cmake-build -DCMAKE_Fortran_COMPILER=mpif90
+cmake --build cmake-build --parallel 4
+```
+
+The default build type is `Release`. The static library is written to
+`cmake-build/lib/libisfft.a` and the library modules to `cmake-build/include/`.
+Object files and generated build rules are also kept inside `cmake-build/`.
+
+Enable the toy solver with
+
+```sh
+cmake -S . -B cmake-build -DISFFT_BUILD_EXAMPLE=ON
+cmake --build cmake-build --parallel 4
+cd cmake-build/example
+mpirun -n 4 ./Poisson.out
+```
+
+Configuration copies the input file and `Post_Poisson.m` from `example/` to
+`cmake-build/example/`. Edit the input and post-processing settings in the
+source `example/` directory, then rebuild to refresh these copies. Run the
+executable and MATLAB script from `cmake-build/example/`.
+
+Install the library and all library module files with
+
+```sh
+# From the project root
+cmake --install cmake-build
+# Or select another installation directory
+cmake --install cmake-build --prefix "$HOME/.local/isfft"
+```
+
+The default installation directory is the project's `install/`. The installed
+`lib/` and `include/` directories can be used with the external-linking commands
+below. The example Makefile also accepts `ISFFT_PREFIX=../cmake-build` to link
+against the CMake build directly.
+
+Choose the compiler when creating the build directory. Use a new build directory
+when changing the compiler or MPI installation.
+
+## Installation and external linking
+
+### Use the project build directly
+
+After the root `make`, another solver can link against the project directories
+
+```sh
+mpif90 -O3 -I/path/to/ISFFT_Github/include \
+    your_solver.f90 \
+    -L/path/to/ISFFT_Github/lib -lisfft \
+    -o solver.out
+```
+
+Place the library after the source or object files that use it. The supplied
+example uses this mode by default.
+
+### Install inside the project
+
+```sh
 make install
 ```
 
-By default, `PREFIX=/usr/local`. This installs:
-- `lib/libisfft.a` → `/usr/local/lib/`
-- Module files → `/usr/local/include/`
+The default prefix is the project's `install/` directory. Installation copies
+`libisfft.a` to `install/lib/` and all library `.mod` files to `install/include/`.
+Use `make print-prefix` to display the destination.
 
-### Local Project Install
+The same example can use this installation
 
-Install to a custom directory (no special privileges needed):
-
-```bash
-make install PREFIX=/path/to/your/project/install
+```sh
+cd example
+make clean
+make ISFFT_PREFIX=../install
+mpirun -n 4 ./Poisson.out
 ```
 
-For example, to install into a local `install` folder in the current directory:
+### Install elsewhere on the computer
 
-```bash
-make install PREFIX=$(PWD)/install
+Choose a directory with `PREFIX`
+
+```sh
+make install PREFIX="$HOME/.local/isfft"
 ```
 
-This creates:
-- `lib/libisfft.a` → `$(PREFIX)/lib/`
-- Module files → `$(PREFIX)/include/`
+A shared installation can use a prefix such as `/usr/local`, provided the user
+has permission to write there. The directory structure is the same for every
+prefix.
 
-## Linking ISFFT to Another Solver
+An external solver can use the installed library with
 
-### Using Repository Build Artifacts
-
-After running `make` in the ISFFT root directory, compile an external solver with:
-
-```bash
-mpif90 -I/path/to/ISFFT/include \
-       your_solver.f90 \
-       -L/path/to/ISFFT/lib -lisfft \
-       -o solver.out
+```sh
+ISFFT_PREFIX="$HOME/.local/isfft"
+mpif90 -O3 -I"$ISFFT_PREFIX/include" \
+    your_solver.f90 \
+    -L"$ISFFT_PREFIX/lib" -lisfft \
+    -o solver.out
 ```
 
-The example Makefile uses `../../include` and `../../lib` by default:
+To build the supplied example against that prefix
 
-```bash
-cd examples/Poisson
-make
+```sh
+cd example
+make clean
+make ISFFT_PREFIX="$HOME/.local/isfft"
 ```
 
-### Using an Installed Prefix
+The example can also be copied to another project and built with the same
+`ISFFT_PREFIX` setting. Clean the example before switching library prefixes.
 
-For a library installed under a custom prefix:
+## Library interfaces
 
-```bash
-export ISFFT_PREFIX=/path/to/ISFFT/install
-mpif90 -I$ISFFT_PREFIX/include \
-       your_solver.f90 \
-       -L$ISFFT_PREFIX/lib -lisfft \
-       -o solver.out
+Applications access the public library interfaces with
+
+```fortran
+use ISFFT
 ```
 
-The example Makefile switches to the installed-prefix configuration when `ISFFT_PREFIX` is supplied:
+| Interface | Purpose |
+| --- | --- |
+| `ISFFT_Initialize` | Prepare geometry, storage, precomputed quantities and execution strategies. |
+| `ISFFT_Finalize` | Release the initialized problem and cached resources. |
+| `ISFFT_Get_Local_Layout` | Query local physical sizes and global starting indices. |
+| `ISFFT_Poisson_solver` | Solve a Poisson problem using the selected discretization. |
+| `ISFFT_Redistribution_Forward`, `ISFFT_Redistribution_Inverse` | Transfer between original and internal decompositions. |
+| `ISFFT_1D_FFT_*`, `ISFFT_2D_FFT_*`, `ISFFT_3D_FFT_*` | Execute public FFTs, including `r2c`, `c2c` and their `_inplace` variants. |
+| `ISFFT_Get_FFT_Layout`, `ISFFT_Get_FFT_Local_Sizes` | Query the sizes and organization required by FFT arrays. |
 
-```bash
-cd examples/Poisson
-make ISFFT_PREFIX=/path/to/ISFFT/install
-```
+Initialize MPI before using ISFFT. Call `ISFFT_Initialize` before execution and
+`ISFFT_Finalize` before `MPI_Finalize`. Initialization is collective over the
+selected communicator, which defaults to `MPI_COMM_WORLD`.
 
-No Makefile editing is required.
+The optional initialization arguments `planning_level` and `prepare_scope`
+control separate choices
 
-## Building and Running the Example
+- `ISFFT_PLAN_ESTIMATE` chooses strategies using preset rules.
+- `ISFFT_PLAN_MEASURE` chooses strategies using initialization-time trials.
+- `prepare_scope` selects which interfaces to prepare. The toy solver uses
+  `ISFFT_USE_REDISTRIBUTION_POISSON` for redistribution and Poisson solving.
+  `ISFFT_USE_ALL` prepares all supported interface families.
 
-Build the library first, then build the example:
+The defaults are `ISFFT_PLAN_MEASURE` and `ISFFT_USE_ALL`. Select the scope during
+initialization and reuse the prepared strategies across repeated calls. All
+ranks must agree on the planning settings.
 
-```bash
-# From the ISFFT root directory
-make
+The current initialization call and Poisson execution are shown in
+[example/main_solver.f90](example/main_solver.f90). Use `ISFFT_REAL_KIND` for
+real arrays passed to the library.
 
-cd examples/Poisson
-make
-mpirun -n 8 ./Poisson.out
-```
+## Example input
 
-The number passed to `mpirun -n` must equal:
+Edit `example/Poisson_solver_UI.in` and rerun the executable. Recompilation is
+needed only when source code changes.
 
-```text
-npx0 × npy0 × npz0
-```
-
-The supplied `Poisson_solver_UI.in` uses `2 × 2 × 2`, so its default run requires eight MPI processes.
-
-The executable reads `Poisson_solver_UI.in` from the current working directory and writes one of:
-
-- `Poisson_1D_IO.dat`
-- `Poisson_2D_IO.dat`
-- `Poisson_3D_IO.dat`
-
-## Example Configuration
-
-The example is controlled by `examples/Poisson/Poisson_solver_UI.in`.
-
-### Grid, dimension, and boundary conditions
-
-```text
-nx_global, ny_global, nz_global, Dimension, Boundary(1:3)
-```
-
-| Parameter | Meaning |
+| Input | Meaning |
 | --- | --- |
 | `nx_global`, `ny_global`, `nz_global` | Global grid sizes. |
-| `Dimension` | Active dimension: `1`, `2`, or `3`. |
-| `Boundary(d)=0` | Periodic boundary condition in direction `d`. |
-| `Boundary(d)=1` | Homogeneous Dirichlet boundary condition. |
-| `Boundary(d)=2` | Homogeneous Neumann boundary condition. |
+| `Dimension` | Number of active directions, from 1 to 3. |
+| `Boundary(1:3)` | Per-axis boundary types, with 0 periodic, 1 homogeneous Dirichlet and 2 homogeneous Neumann. |
+| `npx0`, `npy0`, `npz0` | Process-grid dimensions in the original decomposition. |
+| `LAP` | Halo width, with 0 for arrays without halo cells. |
+| `SLx`, `SLy`, `SLz` | Positive domain lengths. |
+| `Repeat_count` | Positive integer number of Poisson calls, with a default of 1. |
+| `Decomposition` | Internal decomposition, with 0 block, 1 slab and 2 pencil. |
+| `Scheme_type` | Discretization, as listed below. |
 
-Dimension-specific settings:
+Set grid sizes and process counts to 1 along inactive directions. For 1D, use
+one MPI process and `Decomposition=0`. For 2D, use `Decomposition=0` or `1`.
+Pencil decomposition is available in 3D. The 2D slab path requires both active
+grid sizes to be divisible by the MPI process count.
 
-- `Dimension=1` requires `ny_global=nz_global=1`, `npy0=npz0=1`, one MPI process, and `If_decomp=0`.
-- `Dimension=2` requires `nz_global=1`, `npz0=1`, and `If_decomp=0` or `1`.
-- `Dimension=3` supports `If_decomp=0`, `1`, or `2`.
-- For inactive directions, the corresponding boundary value is ignored.
-- The first periodic transform direction currently requires an even number of grid points.
+Periodic grids omit the repeated endpoint. Dirichlet and Neumann grids include
+both endpoints. In 1D and 2D, the first periodic transform axis requires an even
+grid size.
 
-Periodic grids do not duplicate the endpoint. Dirichlet and Neumann grids include both boundary points.
-
-### Process grid and ghost cells
-
-```text
-npx0, npy0, npz0, LAP
-```
-
-| Parameter | Meaning |
+| `Scheme_type` | Discretization |
 | --- | --- |
-| `npx0`, `npy0`, `npz0` | MPI process-grid dimensions in the physical layout. Their product must equal the MPI process count. |
-| `LAP` | Number of ghost-cell layers around each local array. Use `0` for arrays without ghost cells. |
+| 0 | Spectral |
+| 1 | Second-order explicit central difference (E2) |
+| 2 | Fourth-order explicit central difference (E4) |
+| 3 | Fourth-order compact central difference (C4) |
+| 4 | Sixth-order explicit central difference (E6) |
+| 5 | Sixth-order compact central difference (C6) |
+| 6 | Spectral-like compact central difference |
 
-Each process-grid dimension must not exceed the corresponding active global grid size.
+### Manufactured solutions
 
-### Computational domain
+Each active boundary combination defines one analytical test, giving 3 cases
+in 1D, 9 in 2D and 27 in 3D. The reference solution is
 
-```text
-SLx, SLy, SLz
-```
+\[
+\phi(\boldsymbol{x})=\prod_{d=1}^{D}g_d(x_d),
+\qquad
+f=-\left(\sum_{d=1}^{D}k_d^2\right)\phi.
+\]
 
-These values specify the physical domain lengths. Inactive directions still require positive placeholder values.
+For a direction of length \(L\), the directional mode and wave number are
 
-### Time-control values in the example
+| Boundary | Mode \(g(x)\) | Wave number \(k\) |
+| --- | --- | --- |
+| Periodic | \(\cos(2\pi x/L)\) | \(2\pi/L\) |
+| Homogeneous Dirichlet | \(\sin(\pi x/L)\) | \(\pi/L\) |
+| Homogeneous Neumann | \(\cos(\pi x/L)\) | \(\pi/L\) |
 
-```text
-CFL, T
-```
+The example solves \(\nabla^2\phi=f\). Its source uses the continuous Laplacian,
+so finite-difference results include spatial discretization error when compared
+with this analytical solution.
 
-The example reads these values and computes a nominal time step. For the current solver demonstration, `main_solver.f90` explicitly sets the number of Poisson calls to one. These parameters do not affect the library interface itself.
+## Post-processing
 
-### Decomposition type
-
-| `If_decomp` | Layout | Availability |
-| ---: | --- | --- |
-| `0` | Block | 1D, 2D, and 3D |
-| `1` | Slab | 2D and 3D |
-| `2` | Pencil | 3D only |
-
-When a caller's physical process grid differs from the transform layout, ISFFT performs reversible repartitioning internally for the Poisson solver.
-
-### Discretization scheme
-
-| `If_scheme` | Scheme |
-| ---: | --- |
-| `0` | Pseudo-spectral |
-| `1` | Second-order central difference |
-| `2` | Fourth-order central difference |
-| `3` | Fourth-order compact central difference |
-| `4` | Sixth-order central difference |
-| `5` | Sixth-order compact central difference |
-| `6` | Spectral-like compact central difference |
-
-### Manufactured-test selectors
-
-```text
-If_Periodic_test, If_Dirichlet_test, If_Neumann_test
-```
-
-These selectors are used only for three-dimensional cases with the same boundary type in all three directions:
-
-- `[0,0,0]` uses `If_Periodic_test`.
-- `[1,1,1]` uses `If_Dirichlet_test`.
-- `[2,2,2]` uses `If_Neumann_test`.
-- 1D, 2D, and 3D mixed-boundary cases use fixed manufactured solutions, so the three selectors are ignored.
-
-## Manufactured Test Cases
-
-The example solves
-
-```math
-\nabla^2 \phi = f.
-```
-
-The source term `f` is generated analytically from the reference solution shown below.
-
-### 1D and 2D cases
-
-For 1D, the fixed reference solution is:
-
-| Boundary | Reference solution |
-| --- | --- |
-| P | `sin(2πx/Lx)` |
-| D | `sin(πx/Lx)` |
-| N | `cos(πx/Lx)` |
-
-For 2D, all nine combinations of P, D, and N are supported:
-
-| Boundary | Reference solution |
-| --- | --- |
-| PP | `sin(2πx/Lx) + cos(4πy/Ly)` |
-| PD | `cos(2πx/Lx) sin(πy/Ly)` |
-| PN | `cos(2πx/Lx) cos(πy/Ly)` |
-| DP | `sin(πx/Lx) cos(2πy/Ly)` |
-| DD | `sin(πx/Lx) sin(2πy/Ly)` |
-| DN | `sin(πx/Lx) cos(πy/Ly)` |
-| NP | `cos(πx/Lx) cos(2πy/Ly)` |
-| ND | `cos(πx/Lx) sin(πy/Ly)` |
-| NN | `cos(πx/Lx) cos(2πy/Ly)` |
-
-### 3D periodic cases
-
-| `If_Periodic_test` | Reference solution |
-| ---: | --- |
-| `0` | `sin(2πz/Lz) [sin(2πx/Lx) + cos(4πy/Ly)]` |
-| `1` | `x²(Lx-x)² y²(Ly-y)² z²(Lz-z)²`, with its mean removed |
-
-### 3D Dirichlet cases
-
-| `If_Dirichlet_test` | Reference or source |
-| ---: | --- |
-| `0` | `sin(πx/Lx) sin(2πy/Ly) sin(3πz/Lz)` |
-| `1` | `sin(πx) sin(πy) sin(πz)` |
-| `2` | `x(Lx-x) y(Ly-y) z(Lz-z)` |
-| `3` | `x²(Lx-x)² y²(Ly-y)² z²(Lz-z)²` |
-| `4` | `x³(Lx-x)³ y³(Ly-y)³ z³(Lz-z)³` |
-| `5` | Gaussian multiplied by `sin²` boundary factors in each direction |
-| `6` | Product of smooth tanh windows; it is near zero, but not exactly zero, on the boundary |
-| `7` | Discrete point source under homogeneous Dirichlet boundary conditions |
-
-### 3D Neumann cases
-
-| `If_Neumann_test` | Reference or source |
-| ---: | --- |
-| `0` | `cos(πx) cos(2πy) cos(3πz)` |
-| `1` | `x²(Lx-x)² y²(Ly-y)² z²(Lz-z)²` |
-| `2` | Discrete point source with a zero-mean compatibility correction |
-
-### 3D mixed-boundary cases
-
-For any 3D combination that is not PPP, DDD, or NNN, the reference solution is the product of one factor per direction:
-
-```text
-Periodic:   cos(2πx/L)
-Dirichlet:  sin(πx/L)
-Neumann:    cos(πx/L)
-```
-
-The coordinate and domain length corresponding to each direction are used in its factor.
-
-## Post-Processing
-
-For all smooth manufactured cases, open `examples/Poisson/Post.m` and set the values near the top to match `Poisson_solver_UI.in`:
+In MATLAB, select `example/` as the current folder. Match `boundary`,
+`dimension`, `grid_size` and `domain_size` at the top of `Post_Poisson.m` to the
+input, then run
 
 ```matlab
-Dimension = 3;
-Boundary = [0, 0, 0];
-If_case = 0;
-Grid_Size = [128, 128, 128];
-Domain_Size = [4.0, 4.0, 4.0];
+Post_Poisson
 ```
 
-Then run `Post.m` from the example directory. It:
-
-- loads the dimension-appropriate output file;
-- reconstructs the exact manufactured solution;
-- removes the arbitrary constant offset for problems without a Dirichlet boundary;
-- reports the relative L2 error, `||phi_ISFFT-phi_exact||₂ / ||phi_exact||₂`;
-- reports the absolute L-infinity error; and
-- plots a representative solution profile against the exact solution.
-
-The singular point-source cases require different diagnostics and retain their specialized scripts:
-
-- Dirichlet case 7: `Post_Dirichlet_cases.m`
-- Neumann case 2: `Post_Neumann_cases.m`
-
-Set the corresponding `If_case` and grid/domain values near the top of those scripts before running them.
+The script plots a 1D profile with the analytical solution as a black line and
+numerical values as markers. It prints the absolute `Linf` error, the
+quadrature-weighted `L2` error and the maximum discrete residual `Residuals`.
+For periodic/Neumann-only problems, it removes the arbitrary constant offset
+before comparing solutions. Keep the input file matched to the output so that
+residual evaluation uses the correct `Scheme_type`.
 
 ## Cleaning
 
-Clean the library build artifacts from the root directory:
+From the root, `make clean` removes `build/`, `include/` and `lib/`. An installed
+prefix remains available until it is removed separately.
 
-```bash
-make clean
-```
+From `example/`, `make clean` removes its objects, module files, executable and
+numerical `.dat` output files. Library and example cleanup are separate.
 
-Clean example object files, output data, and the executable separately:
-
-```bash
-cd examples/Poisson
-make clean
-```
+For CMake, `cmake --build cmake-build --target clean` removes compiled files.
+Remove `cmake-build/` to also remove its configuration, copied runtime files and
+numerical output.
 
 ## Contact
 
-For questions and bug reports, contact [lizecheng@buaa.edu.cn](mailto:lizecheng@buaa.edu.cn).
+Questions and bug reports can be sent to
+[lizecheng@buaa.edu.cn](mailto:lizecheng@buaa.edu.cn).
 
 ## License
 
-ISFFT is distributed under the MIT License. See [LICENSE](LICENSE) for details.
+ISFFT is distributed under the MIT License. See [LICENSE](LICENSE).

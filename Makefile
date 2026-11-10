@@ -1,91 +1,121 @@
-# ISFFT Fortran MPI Library Makefile
-# This Makefile builds the ISFFT static library only.
-# It does NOT build examples by default.
-
-.NOTPARALLEL:
-
-# Compiler settings
 FC = mpif90
-FFLAGS = -O3 -g
+AR = ar
+FFLAGS = -O3
+# FFLAGS += -ffree-line-length-none -fallow-argument-mismatch
 
-# Directory structure
 SRC_DIR = src
 BUILD_DIR = build
 INCLUDE_DIR = include
 LIB_DIR = lib
-
-# Library name
 LIB_NAME = libisfft.a
-
-# Installation prefix (configurable by user)
-# Safe default: install inside current project directory
-# Override on command line for system-style install, e.g.:
-# make install PREFIX=/usr/local
 PREFIX ?= $(CURDIR)/install
 
-# ISFFT source files in exact dependency order (DO NOT reorder)
+.NOTPARALLEL:
+.DELETE_ON_ERROR:
+
 ISFFT_SRCS = \
+  $(SRC_DIR)/ISFFT_Communicator.f90 \
   $(SRC_DIR)/ISFFT_Precision.f90 \
-  $(SRC_DIR)/ISFFT_Parameters.f90 \
-  $(SRC_DIR)/ISFFT_MPI_Constants.f90 \
-  $(SRC_DIR)/ISFFT_Buffer.f90 \
-  $(SRC_DIR)/ISFFT_Discrete_Symbols.f90 \
-  $(SRC_DIR)/ISFFT_FFT_Pre.f90 \
-  $(SRC_DIR)/ISFFT_LT_Tuning.f90 \
+  $(SRC_DIR)/ISFFT_Problem_State.f90 \
+  $(SRC_DIR)/ISFFT_Discrete_Operators.f90 \
+  $(SRC_DIR)/ISFFT_Workspace.f90 \
+  $(SRC_DIR)/ISFFT_Plans.f90 \
   $(SRC_DIR)/ISFFT_MPI_Part.f90 \
+  $(SRC_DIR)/ISFFT_Halos_Exchange.f90 \
   $(SRC_DIR)/ISFFT_FFT_kernel.f90 \
   $(SRC_DIR)/ISFFT_DST_kernel.f90 \
   $(SRC_DIR)/ISFFT_DCT_kernel.f90 \
-  $(SRC_DIR)/ISFFT_LocalTranspose.f90 \
-  $(SRC_DIR)/ISFFT_GlobalTranspose.f90 \
-  $(SRC_DIR)/ISFFT_Repartitioning.f90 \
-  $(SRC_DIR)/ISFFT_Transforms.f90 \
-  $(SRC_DIR)/ISFFT_Halos_Exchange.f90 \
-  $(SRC_DIR)/ISFFT_1D_Mixed_Poisson.f90 \
-  $(SRC_DIR)/ISFFT_2D_Mixed_Poisson.f90 \
-  $(SRC_DIR)/ISFFT_3D_Mixed_Poisson.f90 \
+  $(SRC_DIR)/ISFFT_Modal_Operations.f90 \
+  $(SRC_DIR)/ISFFT_Communication.f90 \
+  $(SRC_DIR)/ISFFT_Axis_Execution.f90 \
+  $(SRC_DIR)/ISFFT_Transform_Execution.f90 \
+  $(SRC_DIR)/ISFFT_Allocation.f90 \
+  $(SRC_DIR)/ISFFT_Precompute.f90 \
+  $(SRC_DIR)/ISFFT_Planning.f90 \
+  $(SRC_DIR)/ISFFT_Initialization.f90 \
+  $(SRC_DIR)/ISFFT_Redistribution.f90 \
   $(SRC_DIR)/ISFFT_Integrated_Solver.f90 \
-  $(SRC_DIR)/ISFFT_Planner.f90 \
   $(SRC_DIR)/ISFFT.f90
 
-# Object files in build directory, preserving source order
 ISFFT_OBJS = $(patsubst $(SRC_DIR)/%.f90,$(BUILD_DIR)/%.o,$(ISFFT_SRCS))
 
-.PHONY: all install clean print-prefix
+.PHONY: all library install clean print-prefix
+all: library
+library: $(LIB_DIR)/$(LIB_NAME)
+	@printf 'ISFFT library is ready.\n'
 
-# Default target: build the library only
-all: $(LIB_DIR)/$(LIB_NAME)
+# Recover when generated module files have been removed.
+ifneq ($(words $(wildcard $(INCLUDE_DIR)/isfft*.mod)),$(words $(ISFFT_OBJS)))
+.PHONY: missing-modules
+$(ISFFT_OBJS): missing-modules
+endif
 
-# Optional helper: show current install prefix
+$(BUILD_DIR) $(INCLUDE_DIR) $(LIB_DIR):
+	@mkdir -p $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90 Makefile | $(BUILD_DIR) $(INCLUDE_DIR)
+	@$(FC) $(FFLAGS) -I$(INCLUDE_DIR) -J$(INCLUDE_DIR) -c $< -o $@
+
+# Each object depends on the modules imported by its source file.
+$(BUILD_DIR)/ISFFT_Problem_State.o: $(BUILD_DIR)/ISFFT_Precision.o
+$(BUILD_DIR)/ISFFT_Discrete_Operators.o: $(BUILD_DIR)/ISFFT_Precision.o
+$(BUILD_DIR)/ISFFT_Workspace.o: $(BUILD_DIR)/ISFFT_Precision.o
+$(BUILD_DIR)/ISFFT_Plans.o: $(BUILD_DIR)/ISFFT_Precision.o $(BUILD_DIR)/ISFFT_Problem_State.o
+$(BUILD_DIR)/ISFFT_MPI_Part.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Problem_State.o
+$(BUILD_DIR)/ISFFT_Halos_Exchange.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Precision.o \
+  $(BUILD_DIR)/ISFFT_Problem_State.o $(BUILD_DIR)/ISFFT_Workspace.o $(BUILD_DIR)/ISFFT_MPI_Part.o
+$(BUILD_DIR)/ISFFT_FFT_kernel.o: $(BUILD_DIR)/ISFFT_Precision.o $(BUILD_DIR)/ISFFT_Workspace.o
+$(BUILD_DIR)/ISFFT_DST_kernel.o: $(BUILD_DIR)/ISFFT_Precision.o $(BUILD_DIR)/ISFFT_Workspace.o \
+  $(BUILD_DIR)/ISFFT_FFT_kernel.o
+$(BUILD_DIR)/ISFFT_DCT_kernel.o: $(BUILD_DIR)/ISFFT_Precision.o $(BUILD_DIR)/ISFFT_Workspace.o \
+  $(BUILD_DIR)/ISFFT_FFT_kernel.o
+$(BUILD_DIR)/ISFFT_Modal_Operations.o: $(BUILD_DIR)/ISFFT_Workspace.o
+$(BUILD_DIR)/ISFFT_Communication.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Precision.o \
+  $(BUILD_DIR)/ISFFT_Plans.o $(BUILD_DIR)/ISFFT_Problem_State.o $(BUILD_DIR)/ISFFT_Workspace.o \
+  $(BUILD_DIR)/ISFFT_MPI_Part.o
+$(BUILD_DIR)/ISFFT_Axis_Execution.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Precision.o \
+  $(BUILD_DIR)/ISFFT_Plans.o $(BUILD_DIR)/ISFFT_Workspace.o $(BUILD_DIR)/ISFFT_MPI_Part.o \
+  $(BUILD_DIR)/ISFFT_DCT_kernel.o $(BUILD_DIR)/ISFFT_DST_kernel.o $(BUILD_DIR)/ISFFT_FFT_kernel.o
+$(BUILD_DIR)/ISFFT_Transform_Execution.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Precision.o \
+  $(BUILD_DIR)/ISFFT_Plans.o $(BUILD_DIR)/ISFFT_Problem_State.o $(BUILD_DIR)/ISFFT_Workspace.o \
+  $(BUILD_DIR)/ISFFT_MPI_Part.o $(BUILD_DIR)/ISFFT_Axis_Execution.o $(BUILD_DIR)/ISFFT_Communication.o
+$(BUILD_DIR)/ISFFT_Allocation.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Precision.o \
+  $(BUILD_DIR)/ISFFT_Plans.o $(BUILD_DIR)/ISFFT_Problem_State.o $(BUILD_DIR)/ISFFT_Workspace.o \
+  $(BUILD_DIR)/ISFFT_MPI_Part.o $(BUILD_DIR)/ISFFT_Communication.o $(BUILD_DIR)/ISFFT_Transform_Execution.o
+$(BUILD_DIR)/ISFFT_Precompute.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Precision.o \
+  $(BUILD_DIR)/ISFFT_Discrete_Operators.o $(BUILD_DIR)/ISFFT_Plans.o $(BUILD_DIR)/ISFFT_Problem_State.o \
+  $(BUILD_DIR)/ISFFT_Workspace.o $(BUILD_DIR)/ISFFT_MPI_Part.o $(BUILD_DIR)/ISFFT_FFT_kernel.o \
+  $(BUILD_DIR)/ISFFT_Allocation.o
+$(BUILD_DIR)/ISFFT_Planning.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Precision.o \
+  $(BUILD_DIR)/ISFFT_Plans.o $(BUILD_DIR)/ISFFT_Problem_State.o $(BUILD_DIR)/ISFFT_Workspace.o \
+  $(BUILD_DIR)/ISFFT_MPI_Part.o $(BUILD_DIR)/ISFFT_DCT_kernel.o $(BUILD_DIR)/ISFFT_DST_kernel.o \
+  $(BUILD_DIR)/ISFFT_FFT_kernel.o $(BUILD_DIR)/ISFFT_Axis_Execution.o $(BUILD_DIR)/ISFFT_Communication.o \
+  $(BUILD_DIR)/ISFFT_Transform_Execution.o $(BUILD_DIR)/ISFFT_Allocation.o $(BUILD_DIR)/ISFFT_Precompute.o
+$(BUILD_DIR)/ISFFT_Initialization.o: $(BUILD_DIR)/ISFFT_Communicator.o $(BUILD_DIR)/ISFFT_Precision.o \
+  $(BUILD_DIR)/ISFFT_Plans.o $(BUILD_DIR)/ISFFT_Problem_State.o $(BUILD_DIR)/ISFFT_Workspace.o \
+  $(BUILD_DIR)/ISFFT_MPI_Part.o $(BUILD_DIR)/ISFFT_Communication.o $(BUILD_DIR)/ISFFT_Allocation.o \
+  $(BUILD_DIR)/ISFFT_Planning.o $(BUILD_DIR)/ISFFT_Precompute.o
+$(BUILD_DIR)/ISFFT_Redistribution.o: $(BUILD_DIR)/ISFFT_Precision.o $(BUILD_DIR)/ISFFT_Problem_State.o \
+  $(BUILD_DIR)/ISFFT_MPI_Part.o $(BUILD_DIR)/ISFFT_Communication.o
+$(BUILD_DIR)/ISFFT_Integrated_Solver.o: $(BUILD_DIR)/ISFFT_Precision.o $(BUILD_DIR)/ISFFT_Plans.o \
+  $(BUILD_DIR)/ISFFT_Problem_State.o $(BUILD_DIR)/ISFFT_Workspace.o $(BUILD_DIR)/ISFFT_Halos_Exchange.o \
+  $(BUILD_DIR)/ISFFT_Modal_Operations.o $(BUILD_DIR)/ISFFT_Communication.o $(BUILD_DIR)/ISFFT_Transform_Execution.o
+$(BUILD_DIR)/ISFFT.o: $(BUILD_DIR)/ISFFT_Problem_State.o $(BUILD_DIR)/ISFFT_Initialization.o \
+  $(BUILD_DIR)/ISFFT_Precision.o $(BUILD_DIR)/ISFFT_Integrated_Solver.o $(BUILD_DIR)/ISFFT_Transform_Execution.o \
+  $(BUILD_DIR)/ISFFT_Redistribution.o
+
+$(LIB_DIR)/$(LIB_NAME): $(ISFFT_OBJS) Makefile | $(LIB_DIR)
+	@rm -f $@
+	@$(AR) rcs $@ $(ISFFT_OBJS)
+
 print-prefix:
-	@echo "PREFIX = $(PREFIX)"
+	@printf 'PREFIX = %s\n' "$(PREFIX)"
 
-# Create directories if needed
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+install: library
+	@mkdir -p "$(PREFIX)/lib" "$(PREFIX)/include"
+	@cp $(LIB_DIR)/$(LIB_NAME) "$(PREFIX)/lib/"
+	@cp $(INCLUDE_DIR)/*.mod "$(PREFIX)/include/"
+	@printf 'ISFFT installed in %s\n' "$(PREFIX)"
 
-$(INCLUDE_DIR):
-	mkdir -p $(INCLUDE_DIR)
-
-$(LIB_DIR):
-	mkdir -p $(LIB_DIR)
-
-# Compile source files to object files in build/, modules in include/
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90 | $(BUILD_DIR) $(INCLUDE_DIR)
-	$(FC) $(FFLAGS) -I$(INCLUDE_DIR) -J$(INCLUDE_DIR) -c $< -o $@
-
-# Archive object files into static library
-$(LIB_DIR)/$(LIB_NAME): $(ISFFT_OBJS) | $(LIB_DIR)
-	ar rcs $@ $^
-
-# Install library and module files to PREFIX
-install: all
-	mkdir -p $(PREFIX)/lib $(PREFIX)/include
-	cp $(LIB_DIR)/$(LIB_NAME) $(PREFIX)/lib/
-	cp $(INCLUDE_DIR)/*.mod $(PREFIX)/include/
-	@echo "Installed library to: $(PREFIX)/lib/$(LIB_NAME)"
-	@echo "Installed module files to: $(PREFIX)/include/"
-
-# Clean intermediate and built artifacts
 clean:
-	rm -rf $(BUILD_DIR) $(INCLUDE_DIR) $(LIB_DIR) 
+	@rm -rf $(BUILD_DIR) $(INCLUDE_DIR) $(LIB_DIR)

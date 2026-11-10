@@ -4,8 +4,8 @@ include'part_mpi.f90'
 include'main_solver.f90'
 
 Program menu
-use flow_parameters
-use TMS_constants
+use CFD_solver_parameters
+use CFD_solver_constants
 implicit none
 integer :: ierr
 !---------------------------------------------------------------------------------
@@ -25,64 +25,64 @@ end Program menu
 !-----------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------
 subroutine read_parameters
-   use flow_parameters
+   use CFD_solver_parameters
    implicit none
-   integer :: ierr, ntmp(100)
-   real(kind=TMS_REAL_KIND) :: rtmp(100)
+   integer :: ierr, input_status, ntmp(14)
+   real(kind=CFD_solver_real_kind) :: rtmp(3)
    character(len=1) :: bx, by, bz
    character(len=32) :: mode_str, decomp_str, scheme_str
    !-------------------------------------------
    nparameters=0
    rparameters=0.d0
 
+   ntmp = 0
+   rtmp = 0.0_CFD_solver_real_kind
+
    If(my_id .eq. 0) then
 
-      open(30,file='Poisson_solver_UI.in')
+      open(30, file='Poisson_solver_UI.in', status='old', action='read', iostat=input_status)
+      if (input_status /= 0) go to 900
 
-      write(*,*) 'check1 ===='
-      read(30,*)
-      read(30,*)
-      read(30,*)
-      read(30,*)
-      read(30,*) nx_global,ny_global,nz_global,Dimension,&
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900) nx_global,ny_global,nz_global,Dimension,&
                  Boundary(1),Boundary(2),Boundary(3)
-      read(30,*)
-      read(30,*) npx0,npy0,npz0,LAP
-      read(30,*)
-      read(30,*) SLx, SLy, SLz
-      read(30,*)
-      read(30,*) CFL, T
-      read(30,*)
-      read(30,*) If_decomp
-      read(30,*)
-      read(30,*) If_scheme
-      read(30,*)
-      read(30,*) If_Periodic_test, If_Dirichlet_test, If_Neumann_test
-      read(30,*)
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900) npx0,npy0,npz0,LAP
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900) SLx, SLy, SLz
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900) Repeat_count
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900) Decomposition
+      read(30,*,err=900,end=900)
+      read(30,*,err=900,end=900) Scheme_type
       close(30)
 
    Endif
 
-
-   ntmp(1)= nx_global
-   ntmp(2)= ny_global
-   ntmp(3)= nz_global
-   ntmp(4)= Dimension
-   ntmp(5)= Boundary(1)
-   ntmp(6)= Boundary(2)
-   ntmp(7)= Boundary(3)
-   ntmp(8)= LAP
-   ntmp(9)= npx0
-   ntmp(10)= npy0
-   ntmp(11)= npz0
-   ntmp(12)= If_decomp
-   ntmp(13)= If_scheme
-   ntmp(14)= If_Periodic_test
-   ntmp(15)= If_Dirichlet_test
-   ntmp(16)= If_Neumann_test
+   if (my_id == 0) then
+      ntmp(1)= nx_global
+      ntmp(2)= ny_global
+      ntmp(3)= nz_global
+      ntmp(4)= Dimension
+      ntmp(5)= Boundary(1)
+      ntmp(6)= Boundary(2)
+      ntmp(7)= Boundary(3)
+      ntmp(8)= LAP
+      ntmp(9)= npx0
+      ntmp(10)= npy0
+      ntmp(11)= npz0
+      ntmp(12)= Decomposition
+      ntmp(13)= Scheme_type
+      ntmp(14)= Repeat_count
 
 
-   call MPI_bcast(ntmp(1),100,MPI_INTEGER,0, MPI_COMM_WORLD,ierr)
+   end if
+
+   call MPI_bcast(ntmp(1),size(ntmp),MPI_INTEGER,0, MPI_COMM_WORLD,ierr)
 
 
    nx_global  = ntmp(1)
@@ -96,26 +96,23 @@ subroutine read_parameters
    npx0= ntmp(9)
    npy0= ntmp(10)
    npz0= ntmp(11)
-   If_decomp    = ntmp(12)
-   If_scheme    = ntmp(13)
-   If_Periodic_test  = ntmp(14)
-   If_Dirichlet_test = ntmp(15)
-   If_Neumann_test   = ntmp(16)
+   Decomposition    = ntmp(12)
+   Scheme_type    = ntmp(13)
+   Repeat_count   = ntmp(14)
 
 
-   rtmp(1)= SLx
-   rtmp(2)= SLy
-   rtmp(3)= SLz
-   rtmp(4)= CFL
-   rtmp(5)= T
+   if (my_id == 0) then
+      rtmp(1)= SLx
+      rtmp(2)= SLy
+      rtmp(3)= SLz
 
-   call MPI_bcast(rtmp(1),100,TMS_DATA_TYPE,0, MPI_COMM_WORLD,ierr)
+   end if
+
+   call MPI_bcast(rtmp(1),size(rtmp),CFD_solver_real_mpi_type,0, MPI_COMM_WORLD,ierr)
 
    SLx= rtmp(1)
    SLy= rtmp(2)
    SLz= rtmp(3)
-   CFL= rtmp(4)
-   T= rtmp(5)
 
    call validate_dimension_parameters
 
@@ -137,11 +134,11 @@ subroutine read_parameters
          decomp_str = '/'
       else
          mode_str = 'Parallel'
-         if (If_decomp == 0) then
+         if (Decomposition == 0) then
             decomp_str = 'Block'
-         else if (If_decomp == 1) then
+         else if (Decomposition == 1) then
             decomp_str = 'Slab'
-         else if (If_decomp == 2) then
+         else if (Decomposition == 2) then
             decomp_str = 'Pencil'
          else
             decomp_str = 'Unknown'
@@ -151,19 +148,19 @@ subroutine read_parameters
       endif
 
 
-      if (If_scheme == 0) then
+      if (Scheme_type == 0) then
          scheme_str = 'Pseudo-Spectral'
-      else if (If_scheme == 1) then
+      else if (Scheme_type == 1) then
          scheme_str = '2nd Central-Difference'
-      else if (If_scheme == 2) then
+      else if (Scheme_type == 2) then
          scheme_str = '4th Central-Difference'
-      else if (If_scheme == 3) then
+      else if (Scheme_type == 3) then
          scheme_str = '4th Compact Central-Difference'
-      else if (If_scheme == 4) then
+      else if (Scheme_type == 4) then
          scheme_str = '6th Central-Difference'
-      else if (If_scheme == 5) then
+      else if (Scheme_type == 5) then
          scheme_str = '6th Compact Central-Difference'
-      else if (If_scheme == 6) then
+      else if (Scheme_type == 6) then
          scheme_str = 'Spectral-like Compact Central-Difference'
       else
          scheme_str = 'Unknown'
@@ -172,7 +169,7 @@ subroutine read_parameters
       endif
 
       print *, "+------------------------------------------------------------------------------+"
-      print *, "|             ISFFT Poisson Solver Configuration Overview                     |"
+      print *, "|             CFD toy solver using ISFFT - Poisson example                     |"
       print *, "+------------------------------------------------------------------------------+"
       print *, "| Parameter             | Value                                                |"
       print *, "+-----------------------+------------------------------------------------------+"
@@ -193,11 +190,16 @@ subroutine read_parameters
 
    endif
 
+   return
+
+900 continue
+   write(*,'(A)') 'ERROR: Cannot read Poisson_solver_UI.in. Check the input rows.'
+   call MPI_Abort(MPI_COMM_WORLD, 1, ierr)
 end subroutine read_parameters
 
 !-----------------------------------------------------------------------------------
 subroutine validate_dimension_parameters
-   use flow_parameters
+   use CFD_solver_parameters
    implicit none
 
    integer :: ierr, axis
@@ -225,30 +227,21 @@ subroutine validate_dimension_parameters
       invalid = .true.
    end if
 
-   if (min(SLx, SLy, SLz) <= 0.0_TMS_REAL_KIND) then
+   if (min(SLx, SLy, SLz) <= 0.0_CFD_solver_real_kind) then
       if (my_id == 0) write(*,'(A,3(ES12.4,1X))') &
          'ERROR: All three domain lengths must be positive: ', SLx, SLy, SLz
       invalid = .true.
    end if
 
-   if (CFL <= 0.0_TMS_REAL_KIND .or. T < 0.0_TMS_REAL_KIND) then
-      if (my_id == 0) write(*,'(A,2(ES12.4,1X))') &
-         'ERROR: CFL must be positive and T must be nonnegative; currently received CFL = ', CFL, ', T= ', T
-      invalid = .true.
-   end if
-
-   if (If_scheme < 0 .or. If_scheme > 6) then
+   if (Repeat_count < 1) then
       if (my_id == 0) write(*,'(A,I0,A)') &
-         'ERROR: If_scheme must be between 0 and 6; currently received If_scheme = ', If_scheme, '.'
+         'ERROR: Repeat_count must be at least 1. Received ', Repeat_count, '.'
       invalid = .true.
    end if
 
-   if (If_Periodic_test < 0 .or. If_Periodic_test > 1 .or. &
-       If_Dirichlet_test < 0 .or. If_Dirichlet_test > 7 .or. &
-       If_Neumann_test < 0 .or. If_Neumann_test > 2) then
-      if (my_id == 0) write(*,'(A,3(I0,1X))') &
-         'ERROR: Invalid periodic/Dirichlet/Neumann test selector: ', &
-         If_Periodic_test, If_Dirichlet_test, If_Neumann_test
+   if (Scheme_type < 0 .or. Scheme_type > 6) then
+      if (my_id == 0) write(*,'(A,I0,A)') &
+         'ERROR: Scheme_type must be between 0 and 6; currently received Scheme_type = ', Scheme_type, '.'
       invalid = .true.
    end if
 
@@ -295,9 +288,9 @@ subroutine validate_dimension_parameters
             np_size, ' and ', npx0, '.'
          invalid = .true.
       end if
-      if (If_decomp /= 0) then
+      if (Decomposition /= 0) then
          if (my_id == 0) write(*,'(A,I0,A)') &
-            'ERROR: Dimension=1 requires If_decomp=0 (serial); currently received ', If_decomp, '.'
+            'ERROR: Dimension=1 requires Decomposition=0 (serial); currently received ', Decomposition, '.'
          invalid = .true.
       end if
       if (Boundary(1) == 0 .and. mod(nx_global, 2) /= 0) then
@@ -317,10 +310,10 @@ subroutine validate_dimension_parameters
             'ERROR: Dimension=2 requires npz0=1; currently received ', npz0, '.'
          invalid = .true.
       end if
-      if (If_decomp /= 0 .and. If_decomp /= 1) then
+      if (Decomposition /= 0 .and. Decomposition /= 1) then
          if (my_id == 0) write(*,'(A,I0,A)') &
-            'ERROR: Dimension=2 supports only block (0) or slab (1); currently received If_decomp = ', &
-            If_decomp, '.'
+            'ERROR: Dimension=2 supports only block (0) or slab (1); currently received Decomposition = ', &
+            Decomposition, '.'
          invalid = .true.
       end if
       if (npx0 > nx_global .or. npy0 > ny_global) then
@@ -329,7 +322,7 @@ subroutine validate_dimension_parameters
             ' grid = ', nx_global, ny_global
          invalid = .true.
       end if
-      if (If_decomp == 1 .and. np_size > 1) then
+      if (Decomposition == 1 .and. np_size > 1) then
          if (np_size > nx_global .or. np_size > ny_global) then
             if (my_id == 0) write(*,'(A,I0,A,2(I0,1X))') &
                'ERROR: 2D slab requires np_size <= min(nx_global,ny_global); np_size = ', &
@@ -349,14 +342,15 @@ subroutine validate_dimension_parameters
          invalid = .true.
       else if (Boundary(1) /= 0 .and. Boundary(2) == 0 .and. mod(ny_global,2) /= 0) then
          if (my_id == 0) write(*,'(A,I0,A)') &
-            'ERROR: The current 2D r2c path requires even ny_global when y is the first periodic axis; currently received ny_global = ', &
+            'ERROR: The current 2D r2c path requires even ny_global when y is the first periodic axis; ' // &
+            'currently received ny_global = ', &
             ny_global, '.'
          invalid = .true.
       end if
    else if (Dimension == 3) then
-      if (If_decomp < 0 .or. If_decomp > 2) then
+      if (Decomposition < 0 .or. Decomposition > 2) then
          if (my_id == 0) write(*,'(A,I0,A)') &
-            'ERROR: Dimension=3 requires If_decomp = 0, 1, or 2; currently received If_decomp = ', If_decomp, '.'
+            'ERROR: Dimension=3 requires Decomposition = 0, 1, or 2; currently received Decomposition = ', Decomposition, '.'
          invalid = .true.
       end if
    end if
@@ -370,6 +364,6 @@ subroutine validate_dimension_parameters
 
    if (invalid) then
       call mpi_finalize(ierr)
-      stop
+      stop 1
    end if
 end subroutine validate_dimension_parameters

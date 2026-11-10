@@ -1,0 +1,19 @@
+========================================================================
+================== CFD toy solver using ISFFT ==========================
+========================================================================
+# nx_global, ny_global, nz_global, Dimension, Boundary (Periodic: 0, Dirichlet: 1, Neumann: 2)
+    128         128        128         3         0  0  0
+#  npx0, npy0, npz0, LAP
+    2     2     1     0
+#  SLx,    SLy,    SLz
+   4.0     4.0     4.0
+#  Repeat_count (number of Poisson solver calls)
+           1
+#  Decomposition (Block:0, Slab:1, Pencil:2)
+           1
+#  Scheme_type (0 Spectral, 1 E2, 2 E4, 3 C4, 4 E6, 5 C6, 6 Spectral-like)
+           0
+========================================================================
+# Each active Boundary combination defines one analytical test.
+# P: cos(2*pi*x/L), D: sin(pi*x/L), N: cos(pi*x/L); phi is their product.
+# Inactive directions require grid size and process count equal to 1.

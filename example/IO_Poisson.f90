@@ -1,11 +1,11 @@
 !!------------------------------------------------
 subroutine IO_Poisson_1D(phi)
-   Use flow_parameters
-   use TMS_constants
+   Use CFD_solver_parameters
+   use CFD_solver_constants
    implicit none
 
    integer :: i
-   real(kind=TMS_REAL_KIND) :: phi(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   real(kind=CFD_solver_real_kind) :: phi(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
 
    if (my_id == 0) then
       print *, 'write data file: Poisson_1D_IO.dat'
@@ -20,16 +20,16 @@ end subroutine IO_Poisson_1D
 
 !!------------------------------------------------
 subroutine IO_Poisson_2D(phi)
-   Use flow_parameters
-   use TMS_constants
+   Use CFD_solver_parameters
+   use CFD_solver_constants
    implicit none
 
    integer :: i, j, i0, j0, ierr
-   real(kind=TMS_REAL_KIND) :: phi(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
-   real(kind=TMS_REAL_KIND), allocatable :: phi_local(:,:), phi_global(:,:)
+   real(kind=CFD_solver_real_kind) :: phi(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   real(kind=CFD_solver_real_kind), allocatable :: phi_local(:,:), phi_global(:,:)
 
-   allocate(phi_local(nx_global,ny_global), source=0.0_TMS_REAL_KIND)
-   allocate(phi_global(nx_global,ny_global), source=0.0_TMS_REAL_KIND)
+   allocate(phi_local(nx_global,ny_global), source=0.0_CFD_solver_real_kind)
+   allocate(phi_global(nx_global,ny_global), source=0.0_CFD_solver_real_kind)
    do j = 1, ny
       j0 = j_offset(npy)+j-1
       do i = 1, nx
@@ -37,7 +37,7 @@ subroutine IO_Poisson_2D(phi)
          phi_local(i0,j0) = phi(i,j,1)
       end do
    end do
-   call MPI_Reduce(phi_local, phi_global, nx_global*ny_global, TMS_DATA_TYPE, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+   call MPI_Reduce(phi_local, phi_global, nx_global*ny_global, CFD_solver_real_mpi_type, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
    if (my_id == 0) then
       print *, 'write data file: Poisson_2D_IO.dat'
@@ -55,14 +55,14 @@ end subroutine IO_Poisson_2D
 
 !!------------------------------------------------
 subroutine IO_Poisson_3D(phi)
-   Use flow_parameters
-   use TMS_constants
+   Use CFD_solver_parameters
+   use CFD_solver_constants
    implicit none
 
    integer i,j,k,m, ierr, l
    integer i0,j0,k0
-   real(kind=TMS_REAL_KIND)::phi( 1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
-   real(kind=TMS_REAL_KIND),allocatable,dimension(:,:,:):: phi_0,phi_00
+   real(kind=CFD_solver_real_kind)::phi( 1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   real(kind=CFD_solver_real_kind),allocatable,dimension(:,:,:):: phi_0,phi_00
    character(len=120) :: filename1
 
    allocate(phi_0( 1:nx_global,1:ny_global,1:nz_global), &
@@ -86,11 +86,11 @@ subroutine IO_Poisson_3D(phi)
       ENDDO
    ENDDO
 
-   call MPI_REDUCE(phi_0,phi_00,l,TMS_DATA_TYPE,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+   call MPI_REDUCE(phi_0,phi_00,l,CFD_solver_real_mpi_type,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 
    if (my_id == 0) then
       filename1 = 'Poisson_3D_IO.dat'
-      print *, 'write data file:', trim(filename1)
+      print *, 'Write data file: ', trim(filename1)
       open(153, file=filename1, form='formatted')
       do k = 1, nz_global
          do j = 1, ny_global

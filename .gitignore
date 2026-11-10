@@ -1,14 +1,18 @@
-# Compiled objects
+# Compiled files and executables
 *.o
 *.mod
+*.smod
 *.a
-
-# Executables
 *.out
 *.exe
 
-# Build directories
+# Build and installation directories
 /build/
-/lib/
 /include/
+/lib/
 /install/
+/cmake-build*/
+
+# Example output and macOS metadata
+/example/*.dat
+.DS_Store

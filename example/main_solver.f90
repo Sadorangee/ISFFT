@@ -3,17 +3,17 @@ include'Poisson_source.f90'
 include'IO_Poisson.f90'
 !!!----------------------------------------
 subroutine main_solver
-   Use flow_parameters
-   use TMS_constants
+   Use CFD_solver_parameters
+   use CFD_solver_constants
    use ISFFT
    implicit none
 
-   real(kind=TMS_REAL_KIND), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP):: phi,f
+   real(kind=CFD_solver_real_kind), dimension(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP):: phi,f
    integer :: Global_Grid_Size(3)
-   real(kind=TMS_REAL_KIND) :: Computational_Domain_Size(3)
+   real(kind=CFD_solver_real_kind) :: Computational_Domain_Size(3)
    integer :: Process_Grid_Size(3)
    integer :: ierr
-   real(kind=TMS_REAL_KIND) :: t1, t2, h_min, solver_time_local, solver_time_max
+   real(kind=CFD_solver_real_kind) :: t1, t2, solver_time_local, solver_time_max
 
    phi = 0.d0
    f = 0.d0
@@ -21,44 +21,38 @@ subroutine main_solver
    if (Boundary(1) .eq. 0) hx=SLx/nx_global
    if ((Boundary(1) .eq. 1) .or. (Boundary(1) .eq. 2)) hx=SLx/(nx_global-1)
 
-   hy = 1.0_TMS_REAL_KIND
+   hy = 1.0_CFD_solver_real_kind
    if (Dimension >= 2) then
       if (Boundary(2) .eq. 0) hy=SLy/ny_global
       if ((Boundary(2) .eq. 1) .or. (Boundary(2) .eq. 2)) hy=SLy/(ny_global-1)
    end if
 
-   hz = 1.0_TMS_REAL_KIND
+   hz = 1.0_CFD_solver_real_kind
    if (Dimension >= 3) then
       if (Boundary(3) .eq. 0) hz=SLz/nz_global
       if ((Boundary(3) .eq. 1) .or. (Boundary(3) .eq. 2)) hz=SLz/(nz_global-1)
    end if
 
-   select case (Dimension)
-   case (1)
-      h_min = hx
-   case (2)
-      h_min = min(hx, hy)
-   case (3)
-      h_min = min(hx, hy, hz)
-   end select
-
-   dt = CFL*h_min**2.0
-   Nt = max(1, int(T/dt))
-   Nt = 1 !! manually set the number of time steps to 1 for testing purposes
-   if (my_id == 0) write(*,'(A,I0)') 'Number of Poisson solver calls: ', Nt
+   if (my_id == 0) write(*,'(A,I0)') 'Number of Poisson solver calls: ', Repeat_count
 
    Global_Grid_Size = [nx_global, ny_global, nz_global]
    Computational_Domain_Size = [SLx, SLy, SLz]
    Process_Grid_Size = [npx0, npy0, npz0]
    
-   call ISFFT_Initialize(Global_Grid_Size, Process_Grid_Size, Computational_Domain_Size, &
-      LAP, If_decomp, If_scheme, Dimension, Boundary, my_id)
-   solver_time_local = 0.0_TMS_REAL_KIND
+   call ISFFT_Initialize( &
+      dimensions=Dimension, global_grid_size=Global_Grid_Size, &
+      domain_lengths=Computational_Domain_Size, &
+      boundary_types=Boundary, discretization_scheme=Scheme_type, &
+      process_grid_size=Process_Grid_Size, decomposition_type=Decomposition, &
+      halo_width=LAP, rank=my_id, &
+      planning_level=ISFFT_PLAN_MEASURE, &
+      prepare_scope=ISFFT_USE_REDISTRIBUTION_POISSON)
+   solver_time_local = 0.0_CFD_solver_real_kind
 
    !!!---------------------------------------------------------------
    !!!-----------------------Main solver-----------------------------
    !!!---------------------------------------------------------------
-   do Istep = 1, Nt
+   do Istep = 1, Repeat_count  ! This toy example uses an explicit call count for clarity.
 
       ! In real CFD simulations, the source term f is updated at each time step.
       call Poisson_source(f)
@@ -72,7 +66,7 @@ subroutine main_solver
    !!!---------------------------------------------------------------
    !!!---------------------------------------------------------------
    !!!---------------------------------------------------------------
-   call MPI_Reduce(solver_time_local, solver_time_max, 1, TMS_DATA_TYPE, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
+   call MPI_Reduce(solver_time_local, solver_time_max, 1, CFD_solver_real_mpi_type, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
    call ISFFT_Finalize()
 
    if (Dimension == 1) then

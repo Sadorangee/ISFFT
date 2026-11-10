@@ -1,6 +1,6 @@
 !----------------------------------------------------------------------
 subroutine part
-   Use flow_parameters
+   Use CFD_solver_parameters
    implicit none
    integer k,ka,ierr
    integer npx1,npy1,npz1,npx2,npy2,npz2,my_mod1
@@ -70,7 +70,7 @@ subroutine part
 end subroutine part
 !----------------------------------------------------------------------
 subroutine part_change(npx0_new,npy0_new,npz0_new)
-   Use flow_parameters
+   Use CFD_solver_parameters
    integer :: npx0_new, npy0_new, npz0_new
 
    npx0 = npx0_new;
@@ -93,9 +93,9 @@ end subroutine part_change
 
 !----------------------------------------------------------------------
 subroutine exchange_boundary_xyz(f)
-   Use flow_parameters
+   Use CFD_solver_parameters
    implicit none
-   real(kind=TMS_REAL_KIND):: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
+   real(kind=CFD_solver_real_kind):: f(1-LAP:nx+LAP,1-LAP:ny+LAP,1-LAP:nz+LAP)
    call exchange_boundary_x_standard(f, Boundary(1))
    call exchange_boundary_y_standard(f, Boundary(2))
    call exchange_boundary_z_standard(f, Boundary(3))
@@ -103,10 +103,10 @@ subroutine exchange_boundary_xyz(f)
 end subroutine exchange_boundary_xyz
 !----------------------------------------------------------------------
 subroutine exchange_boundary_x_standard(f, BC1)
-   use flow_parameters
+   use CFD_solver_parameters
    implicit none
    integer, intent(in) :: BC1
-   real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+   real(kind=CFD_solver_real_kind), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
  
    integer :: ierr, Status(MPI_STATUS_SIZE)
    integer :: hop, max_hops_left, max_hops_right
@@ -118,8 +118,8 @@ subroutine exchange_boundary_x_standard(f, BC1)
    integer :: i, j, k, k1
    integer :: tag_lr, tag_rl
  
-   real(kind=TMS_REAL_KIND), allocatable :: send_right_buf(:), recv_left_buf(:)
-   real(kind=TMS_REAL_KIND), allocatable :: send_left_buf(:),  recv_right_buf(:)
+   real(kind=CFD_solver_real_kind), allocatable :: send_right_buf(:), recv_left_buf(:)
+   real(kind=CFD_solver_real_kind), allocatable :: send_left_buf(:),  recv_right_buf(:)
  
    if (LAP <= 0) return
  
@@ -227,8 +227,8 @@ subroutine exchange_boundary_x_standard(f, BC1)
          end do
       end if
  
-      call MPI_Sendrecv( send_right_buf, cnt_send_right*ny*nz, TMS_DATA_TYPE, proc_right, tag_lr, &
-                         recv_left_buf,  cnt_recv_left *ny*nz, TMS_DATA_TYPE, proc_left,  tag_lr, &
+      call MPI_Sendrecv( send_right_buf, cnt_send_right*ny*nz, CFD_solver_real_mpi_type, proc_right, tag_lr, &
+                         recv_left_buf,  cnt_recv_left *ny*nz, CFD_solver_real_mpi_type, proc_left,  tag_lr, &
                          MPI_COMM_WORLD, Status, ierr )
  
 
@@ -262,8 +262,8 @@ subroutine exchange_boundary_x_standard(f, BC1)
          end do
       end if
  
-      call MPI_Sendrecv( send_left_buf,  cnt_send_left *ny*nz, TMS_DATA_TYPE, proc_left,  tag_rl, &
-                         recv_right_buf, cnt_recv_right*ny*nz, TMS_DATA_TYPE, proc_right, tag_rl, &
+      call MPI_Sendrecv( send_left_buf,  cnt_send_left *ny*nz, CFD_solver_real_mpi_type, proc_left,  tag_rl, &
+                         recv_right_buf, cnt_recv_right*ny*nz, CFD_solver_real_mpi_type, proc_right, tag_rl, &
                          MPI_COMM_WORLD, Status, ierr )
  
 
@@ -284,16 +284,16 @@ subroutine exchange_boundary_x_standard(f, BC1)
       hop = hop + 1
    end do
  
-   if (TMS_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (CFD_solver_barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
  
    deallocate(send_right_buf, recv_left_buf, send_left_buf, recv_right_buf)
 end subroutine exchange_boundary_x_standard
 !----------------------------------------------------------------------
 subroutine exchange_boundary_y_standard(f, BC2)
-   use flow_parameters
+   use CFD_solver_parameters
    implicit none
    integer, intent(in) :: BC2
-   real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+   real(kind=CFD_solver_real_kind), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
  
    integer :: ierr, Status(MPI_STATUS_SIZE)
    integer :: hop, max_hops_dn, max_hops_up
@@ -305,8 +305,8 @@ subroutine exchange_boundary_y_standard(f, BC2)
    integer :: i, j, k, k1
    integer :: tag_du, tag_ud
  
-   real(kind=TMS_REAL_KIND), allocatable :: send_up_buf(:), recv_dn_buf(:)
-   real(kind=TMS_REAL_KIND), allocatable :: send_dn_buf(:), recv_up_buf(:)
+   real(kind=CFD_solver_real_kind), allocatable :: send_up_buf(:), recv_dn_buf(:)
+   real(kind=CFD_solver_real_kind), allocatable :: send_dn_buf(:), recv_up_buf(:)
  
    if (LAP <= 0) return
  
@@ -405,8 +405,8 @@ subroutine exchange_boundary_y_standard(f, BC2)
          end do
       end if
  
-      call MPI_Sendrecv( send_up_buf,  cnt_send_up*nx*nz, TMS_DATA_TYPE, proc_up, tag_du, &
-                         recv_dn_buf,  cnt_recv_dn*nx*nz, TMS_DATA_TYPE, proc_dn, tag_du, &
+      call MPI_Sendrecv( send_up_buf,  cnt_send_up*nx*nz, CFD_solver_real_mpi_type, proc_up, tag_du, &
+                         recv_dn_buf,  cnt_recv_dn*nx*nz, CFD_solver_real_mpi_type, proc_dn, tag_du, &
                          MPI_COMM_WORLD, Status, ierr )
  
       if (cnt_recv_dn > 0) then
@@ -435,8 +435,8 @@ subroutine exchange_boundary_y_standard(f, BC2)
          end do
       end if
  
-      call MPI_Sendrecv( send_dn_buf,  cnt_send_dn*nx*nz, TMS_DATA_TYPE, proc_dn, tag_ud, &
-                         recv_up_buf,  cnt_recv_up*nx*nz, TMS_DATA_TYPE, proc_up, tag_ud, &
+      call MPI_Sendrecv( send_dn_buf,  cnt_send_dn*nx*nz, CFD_solver_real_mpi_type, proc_dn, tag_ud, &
+                         recv_up_buf,  cnt_recv_up*nx*nz, CFD_solver_real_mpi_type, proc_up, tag_ud, &
                          MPI_COMM_WORLD, Status, ierr )
  
       if (cnt_recv_up > 0) then
@@ -455,16 +455,16 @@ subroutine exchange_boundary_y_standard(f, BC2)
       hop = hop + 1
    end do
  
-   if (TMS_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (CFD_solver_barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
  
    deallocate(send_up_buf, recv_dn_buf, send_dn_buf, recv_up_buf)
 end subroutine exchange_boundary_y_standard
 !----------------------------------------------------------------------
 subroutine exchange_boundary_z_standard(f, BC3)
-   use flow_parameters
+   use CFD_solver_parameters
    implicit none
    integer, intent(in) :: BC3
-   real(kind=TMS_REAL_KIND), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
+   real(kind=CFD_solver_real_kind), intent(inout) :: f(1-LAP:nx+LAP, 1-LAP:ny+LAP, 1-LAP:nz+LAP)
  
    integer :: ierr, Status(MPI_STATUS_SIZE)
    integer :: hop, max_hops_bk, max_hops_fr
@@ -476,8 +476,8 @@ subroutine exchange_boundary_z_standard(f, BC3)
    integer :: i, j, k, k1
    integer :: tag_bf, tag_fb
  
-   real(kind=TMS_REAL_KIND), allocatable :: send_fr_buf(:), recv_bk_buf(:)
-   real(kind=TMS_REAL_KIND), allocatable :: send_bk_buf(:), recv_fr_buf(:)
+   real(kind=CFD_solver_real_kind), allocatable :: send_fr_buf(:), recv_bk_buf(:)
+   real(kind=CFD_solver_real_kind), allocatable :: send_bk_buf(:), recv_fr_buf(:)
  
    if (LAP <= 0) return
  
@@ -576,8 +576,8 @@ subroutine exchange_boundary_z_standard(f, BC3)
          end do
       end if
  
-      call MPI_Sendrecv( send_fr_buf,  cnt_send_fr*nx*ny, TMS_DATA_TYPE, proc_fr, tag_bf, &
-                         recv_bk_buf,  cnt_recv_bk*nx*ny, TMS_DATA_TYPE, proc_bk, tag_bf, &
+      call MPI_Sendrecv( send_fr_buf,  cnt_send_fr*nx*ny, CFD_solver_real_mpi_type, proc_fr, tag_bf, &
+                         recv_bk_buf,  cnt_recv_bk*nx*ny, CFD_solver_real_mpi_type, proc_bk, tag_bf, &
                          MPI_COMM_WORLD, Status, ierr )
  
       if (cnt_recv_bk > 0) then
@@ -606,8 +606,8 @@ subroutine exchange_boundary_z_standard(f, BC3)
           end do
       end if
  
-      call MPI_Sendrecv( send_bk_buf,  cnt_send_bk*nx*ny, TMS_DATA_TYPE, proc_bk, tag_fb, &
-                         recv_fr_buf,  cnt_recv_fr*nx*ny, TMS_DATA_TYPE, proc_fr, tag_fb, &
+      call MPI_Sendrecv( send_bk_buf,  cnt_send_bk*nx*ny, CFD_solver_real_mpi_type, proc_bk, tag_fb, &
+                         recv_fr_buf,  cnt_recv_fr*nx*ny, CFD_solver_real_mpi_type, proc_fr, tag_fb, &
                          MPI_COMM_WORLD, Status, ierr )
  
       if (cnt_recv_fr > 0) then
@@ -626,7 +626,7 @@ subroutine exchange_boundary_z_standard(f, BC3)
       hop = hop + 1
    end do
  
-   if (TMS_Barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   if (CFD_solver_barrier_level >= 1) call MPI_Barrier(MPI_COMM_WORLD, ierr)
  
    deallocate(send_fr_buf, recv_bk_buf, send_bk_buf, recv_fr_buf)
 end subroutine exchange_boundary_z_standard
@@ -648,7 +648,7 @@ function my_mod1(i,n)
 end function my_mod1
 !----------------------------------------------------------------------
 subroutine get_i_node(i_global,node_i,i_local)
-   Use TMS_constants
+   Use CFD_solver_constants
    implicit none
    integer i_global,node_i,i_local,ia
 
@@ -660,7 +660,7 @@ subroutine get_i_node(i_global,node_i,i_local)
 end subroutine get_i_node
 !----------------------------------------------------------------------
 subroutine get_j_node(j_global,node_j,j_local)
-   Use TMS_constants
+   Use CFD_solver_constants
    implicit none
    integer j_global,node_j,j_local,ja
 
@@ -672,7 +672,7 @@ subroutine get_j_node(j_global,node_j,j_local)
 end subroutine get_j_node
 !----------------------------------------------------------------------
 subroutine get_k_node(k_global,node_k,k_local)
-   Use TMS_constants
+   Use CFD_solver_constants
    implicit none
    integer k_global,node_k,k_local,ka
 
@@ -684,7 +684,7 @@ subroutine get_k_node(k_global,node_k,k_local)
 end subroutine get_k_node
 !----------------------------------------------------------------------
 function get_id(npx1,npy1,npz1)
-   Use TMS_constants
+   Use CFD_solver_constants
    implicit none
    integer get_id,npx1,npy1,npz1
    get_id=npz1*(npx0*npy0)+npy1*npx0+npx1

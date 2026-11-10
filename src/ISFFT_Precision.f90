@@ -1,11 +1,21 @@
+!------------------------------------------------------------------------------
+! ISFFT_Precision
+! Fortran integer and real kinds with matching MPI element types.
+!------------------------------------------------------------------------------
 module ISFFT_Precision
-    use mpi
-    implicit none
+   use mpi, only: MPI_DOUBLE_PRECISION, MPI_DOUBLE_COMPLEX, MPI_INTEGER
+   implicit none
 
-    !------For Doubleprecision  (real*8)------------------------
-    integer,parameter::ISFFT_REAL_KIND=8,  ISFFT_DATA_TYPE=MPI_DOUBLE_PRECISION   ! double precison computing
-    integer,parameter::ISFFT_DATA_TYPE0=MPI_INTEGER
-    ! ------For Single precision (real*4)-----------------------
-    ! integer,parameter::ISFFT_REAL_KIND=4,  ISFFT_DATA_TYPE=MPI_REAL             !  single precision computing
+   private
+   public :: ISFFT_REAL_KIND, ISFFT_INT64_KIND
+   public :: ISFFT_REAL_MPI_TYPE, ISFFT_COMPLEX_MPI_TYPE, ISFFT_INTEGER_MPI_TYPE
 
- end module ISFFT_Precision
+   integer, parameter :: ISFFT_REAL_KIND = kind(1.0d0)
+   !! Wide counts and displacements use the matching MPI_INTEGER8 communication type.
+   integer, parameter :: ISFFT_INT64_KIND = selected_int_kind(18)
+
+   integer, parameter :: ISFFT_REAL_MPI_TYPE = MPI_DOUBLE_PRECISION
+   integer, parameter :: ISFFT_COMPLEX_MPI_TYPE = MPI_DOUBLE_COMPLEX
+   integer, parameter :: ISFFT_INTEGER_MPI_TYPE = MPI_INTEGER
+
+end module ISFFT_Precision
